@@ -202,6 +202,12 @@ public static class Decoder
         });
     }
 
+    /// <summary>
+    /// Resolves the number of extra bytes to be read for a given addressing mode
+    /// </summary>
+    /// <param name="addr">The addressing mode to resolve</param>
+    /// <returns>The number of extra bytes to account for</returns>
+    /// <exception cref="ArgumentException">Thrown if an invalid address mode is given</exception>
     public static int ResolveRemainingBytes(AddressMode addr)
     {
         return addr switch
@@ -226,12 +232,21 @@ public static class Decoder
     }
 }
 
+/// <summary>
+/// Abstraction for a full, self-contained instruction
+/// </summary>
 public class Instruction
 {
     private Opcode _op;
     private AddressMode _addressMode;
     private byte[] _extraBytes;
 
+    /// <summary>
+    /// Constructs a new instruction
+    /// </summary>
+    /// <param name="op">The opcode of the instruction</param>
+    /// <param name="addressMode">The addressing mode for the instruction</param>
+    /// <param name="extraBytes">The bytes required as extra parameters</param>
     public Instruction(Opcode op, AddressMode addressMode, byte[] extraBytes)
     {
         _op = op;
@@ -239,8 +254,18 @@ public class Instruction
         _extraBytes = extraBytes;
     }
 
+    /// <summary>
+    /// Simple toString for debugging purposes, may be edited or removed later
+    /// </summary>
+    /// <returns>A rough string representation of the object</returns>
     public override string ToString()
     {
-        return $"{_op}, {_addressMode}, {_extraBytes.Length}";
+        var s =  $"{_op}, {_addressMode}, [";
+        foreach (var b in _extraBytes)
+        {
+            s += b + ", ";
+        }
+
+        return s + "]";
     }
 }
