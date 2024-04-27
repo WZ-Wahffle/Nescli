@@ -7,7 +7,7 @@ public class Instruction
 {
     public readonly Opcode Op;
     public readonly AddressMode AddressMode;
-    private readonly byte[] _extraBytes;
+    public readonly byte[] ExtraBytes;
 
     /// <summary>
     /// Constructs a new instruction
@@ -19,7 +19,7 @@ public class Instruction
     {
         Op = op;
         AddressMode = addressMode;
-        _extraBytes = extraBytes;
+        ExtraBytes = extraBytes;
     }
 
     /// <summary>
@@ -29,7 +29,7 @@ public class Instruction
     public override string ToString()
     {
         var s = $"{Op}, {AddressMode}, [";
-        foreach (var b in _extraBytes)
+        foreach (var b in ExtraBytes)
         {
             s += b + ", ";
         }

@@ -9,11 +9,11 @@ public class Cpu
 {
     private readonly MemoryController _mc;
     private ushort Pc { get; set; }
-    private byte _a = 0;
-    private byte _x = 0;
-    private byte _y = 0;
-    private byte _s = 0;
-    private byte _p = 0;
+    public byte A { get; private set; } = 0;
+    public byte X { get; private set; } = 0;
+    public byte Y { get; private set; } = 0;
+    public byte S { get; private set; } = 0;
+    public byte P { get; private set; } = 0;
 
     /// <summary>
     /// Memory handling is managed through constructor injection,
@@ -54,7 +54,7 @@ public class Cpu
     /// <exception cref="NotImplementedException">Thrown if instruction has not been implemented yet</exception>
     /// <exception cref="IllegalAddressModeException">Thrown if address mode in instruction is undefined for opcode</exception>
     /// <exception cref="ArgumentOutOfRangeException"></exception>
-    private void Execute(Instruction ins)
+    public void Execute(Instruction ins)
     {
         switch (ins.Op)
         {
@@ -110,7 +110,7 @@ public class Cpu
                     throw new IllegalAddressModeException(ins);
                 }
 
-                _p &= 0b11110111;
+                P &= 0b11110111;
                 break;
             case Opcode.Cli:
                 throw new NotImplementedException(ins.ToString());
@@ -155,7 +155,23 @@ public class Cpu
                 throw new NotImplementedException(ins.ToString());
                 break;
             case Opcode.Lda:
-                throw new NotImplementedException(ins.ToString());
+                switch (ins.AddressMode)
+                {
+                    case AddressMode.Immediate:
+                    case AddressMode.Absolute:
+                    case AddressMode.ZeroPage:
+                    case AddressMode.IndexedIndirect:
+                    case AddressMode.IndirectIndexed:
+                    case AddressMode.IndexedZeroPageX:
+                    case AddressMode.IndexedAbsoluteX:
+                    case AddressMode.IndexedAbsoluteY:
+                    case AddressMode.ZeroPageIndirect:
+                        A = (byte)ResolveAddress(ins);
+                        break;
+                    default:
+                        throw new IllegalAddressModeException(ins);
+                }
+
                 break;
             case Opcode.Ldx:
                 throw new NotImplementedException(ins.ToString());
@@ -223,7 +239,7 @@ public class Cpu
                     throw new IllegalAddressModeException(ins);
                 }
 
-                _p |= 0b100;
+                P |= 0b100;
                 break;
             case Opcode.Sta:
                 throw new NotImplementedException(ins.ToString());
@@ -264,5 +280,35 @@ public class Cpu
             default:
                 throw new ArgumentOutOfRangeException();
         }
+    }
+
+    private int ResolveAddress(Instruction ins)
+    {
+        return ins.AddressMode switch
+        {
+            AddressMode.Immediate => ins.ExtraBytes[0],
+            AddressMode.Absolute => _mc.Read((ushort)(ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8)),
+            AddressMode.ZeroPage => _mc.Read(ins.ExtraBytes[0]),
+            AddressMode.IndexedIndirect => _mc.Read((ushort)(_mc.Read((byte)(ins.ExtraBytes[0] + X)) |
+                                                             _mc.Read((byte)(ins.ExtraBytes[0] + X + 1)) << 8)),
+            AddressMode.IndirectIndexed => _mc.Read((ushort)(_mc.Read(ins.ExtraBytes[0]) +
+                                                             (_mc.Read((ushort)(ins.ExtraBytes[0] + 1)) << 8) + Y)),
+            AddressMode.IndexedZeroPageX => _mc.Read((byte)(_mc.Read(ins.ExtraBytes[0]) + X)),
+            AddressMode.IndexedZeroPageY => _mc.Read((byte)(_mc.Read(ins.ExtraBytes[0]) + Y)),
+            AddressMode.IndexedAbsoluteX => _mc.Read((ushort)((ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8) + X)),
+            AddressMode.IndexedAbsoluteY => _mc.Read((ushort)((ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8) + Y)),
+            AddressMode.Relative => ins.ExtraBytes[0] - 128,
+            AddressMode.AbsoluteIndirect => _mc.Read(_mc.Read((ushort)(ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8))) |
+                                            _mc.Read(_mc.Read(
+                                                (ushort)((ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8) + 1))) << 8,
+            AddressMode.AbsoluteIndexedIndirect => _mc.Read(_mc.Read((ushort)((ins.ExtraBytes[0] |
+                                                                               ins.ExtraBytes[1] << 8) + X))) |
+                                                   _mc.Read(_mc.Read(
+                                                       (ushort)((ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8) + 1 +
+                                                                X))) << 8,
+            AddressMode.ZeroPageIndirect => _mc.Read((ushort)(_mc.Read(ins.ExtraBytes[0]) |
+                                                              _mc.Read((ushort)(ins.ExtraBytes[0] + 1)) << 8)),
+            _ => throw new ArgumentOutOfRangeException()
+        };
     }
 }
