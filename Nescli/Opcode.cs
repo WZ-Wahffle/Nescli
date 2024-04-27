@@ -201,4 +201,46 @@ public static class Decoder
             _ => AddressMode.InvalidAddressMode
         });
     }
+
+    public static int ResolveRemainingBytes(AddressMode addr)
+    {
+        return addr switch
+        {
+            AddressMode.Immediate => 1,
+            AddressMode.Absolute => 2,
+            AddressMode.ZeroPage => 1,
+            AddressMode.Accumulator => 0,
+            AddressMode.Implied => 0,
+            AddressMode.IndexedIndirect => 1,
+            AddressMode.IndirectIndexed => 1,
+            AddressMode.IndexedZeroPageX => 1,
+            AddressMode.IndexedZeroPageY => 1,
+            AddressMode.IndexedAbsoluteX => 2,
+            AddressMode.IndexedAbsoluteY => 2,
+            AddressMode.Relative => 1,
+            AddressMode.AbsoluteIndirect => 2,
+            AddressMode.AbsoluteIndexedIndirect => 2,
+            AddressMode.ZeroPageIndirect => 1,
+            _ => throw new ArgumentException("Attempted to resolve bad address mode")
+        };
+    }
+}
+
+public class Instruction
+{
+    private Opcode _op;
+    private AddressMode _addressMode;
+    private byte[] _extraBytes;
+
+    public Instruction(Opcode op, AddressMode addressMode, byte[] extraBytes)
+    {
+        _op = op;
+        _addressMode = addressMode;
+        _extraBytes = extraBytes;
+    }
+
+    public override string ToString()
+    {
+        return $"{_op}, {_addressMode}, {_extraBytes.Length}";
+    }
 }

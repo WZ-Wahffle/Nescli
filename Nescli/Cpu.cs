@@ -8,7 +8,7 @@ namespace Nescli;
 public class Cpu
 {
     private MemoryController _mc;
-    public ushort _pc { get; }
+    public ushort Pc { get; set; }
 
     /// <summary>
     /// Memory handling is handled through constructor injection,
@@ -21,7 +21,7 @@ public class Cpu
         _mc = mc;
         // Program counter is set to the 16-bit ROM address stored at 0xfffd and 0xfffc,
         // as it would in a real 6502
-        _pc = (ushort)((mc.Read(0xfffd) << 8) | mc.Read(0xfffc));
+        Pc = (ushort)((mc.Read(0xfffd) << 8) | mc.Read(0xfffc));
     }
 
     /// <summary>
@@ -29,8 +29,17 @@ public class Cpu
     /// </summary>
     public void Run()
     {
-        var opcode = _mc.Read(_pc);
+
+        var opcode = _mc.Read(Pc++);
         var op = Decoder.Decode(opcode);
-        Console.WriteLine(op);
+        var extraBytes = new byte[Decoder.ResolveRemainingBytes(op.Item2)];
+        for (var i = 0; i < extraBytes.Length; i++)
+        {
+            extraBytes[i] = _mc.Read(Pc++);
+        }
+
+        var instruction = new Instruction(op.Item1, op.Item2, extraBytes);
+
+        Console.WriteLine(instruction);
     }
 }
