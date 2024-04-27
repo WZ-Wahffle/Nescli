@@ -1,7 +1,7 @@
 namespace Nescli;
 
 /// <summary>
-/// Discerns different opcodes, as well as an extra entry for invalid opcodes
+/// Discerns different opcodes
 /// </summary>
 public enum Opcode
 {
@@ -69,12 +69,10 @@ public enum Opcode
     Txa,
     Txs,
     Tya,
-    InvalidOpcode
 }
 
 /// <summary>
-/// Discerns different addressing modes,
-/// may be turned into implementations of an interface in the future
+/// Discerns different addressing modes
 /// </summary>
 public enum AddressMode
 {
@@ -93,7 +91,6 @@ public enum AddressMode
     AbsoluteIndirect, // (abs)
     AbsoluteIndexedIndirect, // abs (ind, x)
     ZeroPageIndirect, // (zpg)
-    InvalidAddressMode
 }
 
 /// <summary>
@@ -103,10 +100,12 @@ public enum AddressMode
 public static class Decoder
 {
     /// <summary>
-    /// Decodes an 8-bit value into its corresponding opcode
+    /// Decodes an 8-bit value into a combination of opcode and addressing mode
     /// </summary>
-    /// <param name="code">The value to decode</param>
-    /// <returns>The corresponding opcode</returns>
+    /// <param name="code">Value to decode</param>
+    /// <returns>Resolved opcode and addressing mode</returns>
+    /// <exception cref="IllegalOpcodeException">Thrown if code does not resolve to a valid opcode</exception>
+    /// <exception cref="IllegalAddressModeException">Thrown if code does not resolve to a valid addressing mode</exception>
     public static Tuple<Opcode, AddressMode> Decode(byte code)
     {
         return new Tuple<Opcode, AddressMode>(code switch
@@ -175,10 +174,11 @@ public static class Decoder
             0xea => Opcode.Nop,
             0xfa => Opcode.Plx,
             0x4c or 0x6c or 0x7c => Opcode.Jmp,
-            _ => Opcode.InvalidOpcode
+            _ => throw new IllegalOpcodeException(code)
         }, code switch
         {
-            0x69 or 0x29 or 0x89 or 0xc9 or 0xe0 or 0xc0 or 0x49 or 0xa9 or 0xa2 or 0xa0 or 0x09 or 0xe9 => AddressMode.Immediate,
+            0x69 or 0x29 or 0x89 or 0xc9 or 0xe0 or 0xc0 or 0x49 or 0xa9 or 0xa2 or 0xa0 or 0x09 or 0xe9 => AddressMode
+                .Immediate,
             0x6d or 0x2d or 0x0e or 0x2c or 0xcd or 0xec or 0xcc or 0xce or 0x4d or 0xee or 0x4c or 0x20 or 0xad or 0xae
                 or 0xac or 0x4e or 0x0d or 0x2e or 0x6e or 0xed or 0x8d or 0x8d or 0x8e or 0x8c or 0x9c or 0x1c
                 or 0x0c => AddressMode.Absolute,
@@ -190,15 +190,17 @@ public static class Decoder
                 or 0x9a or 0x98 => AddressMode.Implied,
             0x61 or 0x21 or 0xc1 or 0x41 or 0xa1 or 0x01 or 0xe1 or 0x81 => AddressMode.IndexedIndirect,
             0x71 or 0x31 or 0xd1 or 0x51 or 0xb1 or 0x11 or 0xf1 or 0x91 => AddressMode.IndirectIndexed,
-            0x75 or 0x35 or 0x16 or 0x34 or 0xd5 or 0xd6 or 0x55 or 0xf6 or 0xb5 or 0xb4 or 0x56 or 0x15 or 0x36 or 0x76 or 0xf5 or 0x95 or 0x94 or 0x74 => AddressMode.IndexedZeroPageX,
+            0x75 or 0x35 or 0x16 or 0x34 or 0xd5 or 0xd6 or 0x55 or 0xf6 or 0xb5 or 0xb4 or 0x56 or 0x15 or 0x36 or 0x76
+                or 0xf5 or 0x95 or 0x94 or 0x74 => AddressMode.IndexedZeroPageX,
             0xb6 or 0x96 => AddressMode.IndexedZeroPageY,
-            0x7d or 0x3d or 0x1e or 0x3c or 0xdd or 0xde or 0x5d or 0xfe or 0xbd or 0xbc or 0x5e or 0x1d or 0x3e or 0x7e or 0xfd or 0x9d or 0x9e => AddressMode.IndexedAbsoluteX,
+            0x7d or 0x3d or 0x1e or 0x3c or 0xdd or 0xde or 0x5d or 0xfe or 0xbd or 0xbc or 0x5e or 0x1d or 0x3e or 0x7e
+                or 0xfd or 0x9d or 0x9e => AddressMode.IndexedAbsoluteX,
             0x79 or 0x39 or 0xd9 or 0x59 or 0xb9 or 0xbe or 0x19 or 0xf9 or 0x99 => AddressMode.IndexedAbsoluteY,
             0x90 or 0xb0 or 0xf0 or 0x30 or 0xd0 or 0x10 or 0x80 or 0x50 or 0x70 => AddressMode.Relative,
             0x6c => AddressMode.AbsoluteIndirect,
             0x7c => AddressMode.AbsoluteIndexedIndirect,
             0x72 or 0x32 or 0xd2 or 0x52 or 0xb2 or 0x12 or 0xf2 or 0x92 => AddressMode.ZeroPageIndirect,
-            _ => AddressMode.InvalidAddressMode
+            _ => throw new IllegalAddressModeException(code)
         });
     }
 
@@ -206,8 +208,8 @@ public static class Decoder
     /// Resolves the number of extra bytes to be read for a given addressing mode
     /// </summary>
     /// <param name="addr">The addressing mode to resolve</param>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown if addr is not within the range of the backing Enum</exception>
     /// <returns>The number of extra bytes to account for</returns>
-    /// <exception cref="ArgumentException">Thrown if an invalid address mode is given</exception>
     public static int ResolveRemainingBytes(AddressMode addr)
     {
         return addr switch
@@ -227,45 +229,7 @@ public static class Decoder
             AddressMode.AbsoluteIndirect => 2,
             AddressMode.AbsoluteIndexedIndirect => 2,
             AddressMode.ZeroPageIndirect => 1,
-            _ => throw new ArgumentException("Attempted to resolve bad address mode")
+            _ => throw new ArgumentOutOfRangeException(nameof(addr), addr, null)
         };
-    }
-}
-
-/// <summary>
-/// Abstraction for a full, self-contained instruction
-/// </summary>
-public class Instruction
-{
-    private Opcode _op;
-    private AddressMode _addressMode;
-    private byte[] _extraBytes;
-
-    /// <summary>
-    /// Constructs a new instruction
-    /// </summary>
-    /// <param name="op">The opcode of the instruction</param>
-    /// <param name="addressMode">The addressing mode for the instruction</param>
-    /// <param name="extraBytes">The bytes required as extra parameters</param>
-    public Instruction(Opcode op, AddressMode addressMode, byte[] extraBytes)
-    {
-        _op = op;
-        _addressMode = addressMode;
-        _extraBytes = extraBytes;
-    }
-
-    /// <summary>
-    /// Simple toString for debugging purposes, may be edited or removed later
-    /// </summary>
-    /// <returns>A rough string representation of the object</returns>
-    public override string ToString()
-    {
-        var s =  $"{_op}, {_addressMode}, [";
-        foreach (var b in _extraBytes)
-        {
-            s += b + ", ";
-        }
-
-        return s + "]";
     }
 }

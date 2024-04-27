@@ -17,10 +17,9 @@ if (f == Stream.Null)
     }
 }
 
-var file = new Ines
-{
-    fileSize = f.Length
-};
+var file = new Ines();
+file.fileSize = f.Length;
+
 {
     var b = new byte[1];
     f.ReadExactly(b, 0, 1);
@@ -46,6 +45,8 @@ f.Close();
 var memoryController = new MemoryController();
 memoryController.AddMemory(new Rom(asmRom), 0x8000, 0x10000);
 var cpu = new Cpu(memoryController);
-cpu.Run();
+
+// temporary implementation to help find unimplemented opcodes
+for(int i = 0; i < 100; i++) cpu.Run();
 
 return 0;
