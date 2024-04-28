@@ -110,7 +110,7 @@ public class Cpu
                     throw new IllegalAddressModeException(ins);
                 }
 
-                P &= 0b11110111;
+                SetStatusBit(StatusBits.DecimalMode, false);
                 break;
             case Opcode.Cli:
                 throw new NotImplementedException(ins.ToString());
@@ -166,7 +166,7 @@ public class Cpu
                     case AddressMode.IndexedAbsoluteX:
                     case AddressMode.IndexedAbsoluteY:
                     case AddressMode.ZeroPageIndirect:
-                        A = (byte)ResolveAddress(ins);
+                        A = (byte)ResolveAddressRead(ins);
                         break;
                     default:
                         throw new IllegalAddressModeException(ins);
@@ -242,7 +242,22 @@ public class Cpu
                 P |= 0b100;
                 break;
             case Opcode.Sta:
-                throw new NotImplementedException(ins.ToString());
+                switch (ins.AddressMode)
+                {
+                    case AddressMode.Absolute:
+                    case AddressMode.ZeroPage:
+                    case AddressMode.IndexedIndirect:
+                    case AddressMode.IndirectIndexed:
+                    case AddressMode.IndexedZeroPageX:
+                    case AddressMode.IndexedAbsoluteX:
+                    case AddressMode.IndexedAbsoluteY:
+                    case AddressMode.ZeroPageIndirect:
+                        _mc.Write(ResolveAddressWrite(ins), A);
+                        break;
+                    default:
+                        throw new IllegalAddressModeException(ins);
+                }
+
                 break;
             case Opcode.Stx:
                 throw new NotImplementedException(ins.ToString());
@@ -282,7 +297,13 @@ public class Cpu
         }
     }
 
-    private int ResolveAddress(Instruction ins)
+    /// <summary>
+    /// Converts a combination of address mode and values into a read value
+    /// </summary>
+    /// <param name="ins">The instruction to operate on</param>
+    /// <returns>The value to operate further with. Normally 8-bit unsigned, but the jump instructions return an address</returns>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown if an addressing mode is provided that doesn't fit with reading</exception>
+    private int ResolveAddressRead(Instruction ins)
     {
         return ins.AddressMode switch
         {
@@ -297,7 +318,6 @@ public class Cpu
             AddressMode.IndexedZeroPageY => _mc.Read((byte)(_mc.Read(ins.ExtraBytes[0]) + Y)),
             AddressMode.IndexedAbsoluteX => _mc.Read((ushort)((ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8) + X)),
             AddressMode.IndexedAbsoluteY => _mc.Read((ushort)((ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8) + Y)),
-            AddressMode.Relative => ins.ExtraBytes[0] - 128,
             AddressMode.AbsoluteIndirect => _mc.Read(_mc.Read((ushort)(ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8))) |
                                             _mc.Read(_mc.Read(
                                                 (ushort)((ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8) + 1))) << 8,
@@ -308,7 +328,55 @@ public class Cpu
                                                                 X))) << 8,
             AddressMode.ZeroPageIndirect => _mc.Read((ushort)(_mc.Read(ins.ExtraBytes[0]) |
                                                               _mc.Read((ushort)(ins.ExtraBytes[0] + 1)) << 8)),
-            _ => throw new ArgumentOutOfRangeException()
+            _ => throw new IllegalAddressModeException(ins)
         };
+    }
+
+    /// <summary>
+    /// Converts a combination of address mode and values into a target address for an instruction
+    /// </summary>
+    /// <param name="ins">The instruction to operate on</param>
+    /// <returns>The address, assuming the 6502's 16-bit memory space</returns>
+    /// <exception cref="IllegalAddressModeException">Thrown if an addressing mode is provided that doesn't fit with writing</exception>
+    private ushort ResolveAddressWrite(Instruction ins)
+    {
+        return ins.AddressMode switch
+        {
+            AddressMode.Absolute => (ushort)(ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8),
+            AddressMode.ZeroPage => ins.ExtraBytes[0],
+            AddressMode.IndexedIndirect => (ushort)(_mc.Read((byte)(ins.ExtraBytes[0] + X)) |
+                                                    _mc.Read((byte)(ins.ExtraBytes[0] + X + 1)) << 8),
+            AddressMode.IndirectIndexed => (ushort)(_mc.Read(ins.ExtraBytes[0]) +
+                                                    (_mc.Read((ushort)(ins.ExtraBytes[0] + 1)) << 8) + Y),
+            AddressMode.IndexedZeroPageX => (byte)(_mc.Read(ins.ExtraBytes[0]) + X),
+            AddressMode.IndexedZeroPageY => (byte)(_mc.Read(ins.ExtraBytes[0]) + Y),
+            AddressMode.IndexedAbsoluteX => (ushort)((ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8) + X),
+            AddressMode.IndexedAbsoluteY => (ushort)((ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8) + Y),
+            AddressMode.Relative => (ushort)(Pc + (ins.ExtraBytes[0] - 128)),
+            _ => throw new IllegalAddressModeException(ins)
+        };
+    }
+
+    enum StatusBits
+    {
+        Carry = 0,
+        Zero = 1,
+        NotIrqDisable = 2,
+        DecimalMode = 3, // WIll not actually be implemented, as the NES' 6502 derivative omits it too
+        BrkCommand = 4,
+        Overflow = 6,
+        Negative = 7
+    }
+
+    private void SetStatusBit(StatusBits index, bool value)
+    {
+        if (value)
+        {
+            P |= (byte)(1 << (int)index);
+        }
+        else
+        {
+            P &= (byte)(0xff ^ (1 << (int)index));
+        }
     }
 }
