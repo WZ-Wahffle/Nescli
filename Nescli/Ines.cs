@@ -8,8 +8,13 @@ namespace Nescli;
 /// </summary>
 public class Ines
 {
-    public byte[] _headerUnused;
-    public long fileSize { get; set; }
-    public int asmSize { get; set; }
-    public int graphicsSize { get; set; }
+    public byte[] HeaderUnused;
+    public long FileSize { get; private set; }
+    public int AsmSize { get; set; }
+    public int GraphicsSize { get; set; }
+
+    public Ines(long fileSize)
+    {
+        FileSize = fileSize;
+    }
 }

@@ -63,7 +63,6 @@ public class Cpu
                 break;
             case Opcode.And:
                 throw new NotImplementedException(ins.ToString());
-
                 break;
             case Opcode.Asl:
                 throw new NotImplementedException(ins.ToString());
@@ -167,6 +166,8 @@ public class Cpu
                     case AddressMode.IndexedAbsoluteY:
                     case AddressMode.ZeroPageIndirect:
                         A = (byte)ResolveAddressRead(ins);
+                        SetStatusBit(StatusBits.Carry, A == 0);
+                        SetStatusBit(StatusBits.Negative, A > 127);
                         break;
                     default:
                         throw new IllegalAddressModeException(ins);
