@@ -24,9 +24,42 @@ public class Cpu
     public Cpu(MemoryController mc)
     {
         _mc = mc;
-        // Program counter is set to the 16-bit ROM address stored at 0xfffd and 0xfffc,
-        // as it would in a real 6502
-        Pc = (ushort)((mc.Read(0xfffd) << 8) | mc.Read(0xfffc));
+        Interrupt(InterruptSource.Reset);
+    }
+
+    public enum InterruptSource
+    {
+        Irq,
+        Reset,
+        Nmi,
+        Abort,
+        Brk
+    }
+
+    /// <summary>
+    /// Handles all interrupts, both software and hardware
+    /// </summary>
+    /// <param name="src">The source of the interrupt</param>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown if invalid src value is provided</exception>
+    public void Interrupt(InterruptSource src)
+    {
+        var stack = _mc.FindStack();
+        stack.Push((byte)(Pc >> 8));
+        stack.Push((byte)(Pc & 0xff));
+        stack.Push(P);
+        SetStatusBit(StatusBits.NotIrqDisable, true);
+
+        var resetVector = src switch
+        {
+            InterruptSource.Irq => new Tuple<ushort, ushort>(0xffff, 0xfffe),
+            InterruptSource.Brk => new Tuple<ushort, ushort>(0xffff, 0xfffe),
+            InterruptSource.Reset => new Tuple<ushort, ushort>(0xfffd, 0xfffc),
+            InterruptSource.Nmi => new Tuple<ushort, ushort>(0xfffb, 0xfffa),
+            InterruptSource.Abort => new Tuple<ushort, ushort>(0xfff9, 0xfff8),
+            _ => throw new ArgumentOutOfRangeException(nameof(src), src, null)
+        };
+
+        Pc = (ushort)((_mc.Read(resetVector.Item1) << 8) | _mc.Read(resetVector.Item2));
     }
 
     /// <summary>

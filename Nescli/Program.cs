@@ -37,6 +37,7 @@ internal static class Program
         var memoryControllerCpu = new MemoryController();
         memoryControllerCpu.AddMemory(new PpuBusAdapter(ppu), 0x2000, 0x4000);
         memoryControllerCpu.AddMemory(new Rom(asmRom), 0x8000, 0x10000);
+        memoryControllerCpu.AddMemory(new Stack(0x100), 0x100, 0x200);
         var cpu = new Cpu(memoryControllerCpu);
 
 
