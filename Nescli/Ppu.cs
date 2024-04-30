@@ -6,6 +6,7 @@ public class Ppu
 {
     private readonly MemoryController _mc;
     public readonly Color[,] FrameBuffer;
+    private ushort _baseNametableAddress;
 
     public Ppu(MemoryController mc)
     {
@@ -18,5 +19,17 @@ public class Ppu
                 FrameBuffer[i, j] = new Color(0, 0, 0, 255);
             }
         }
+    }
+
+    public void PpuCtrl(byte value)
+    {
+        _baseNametableAddress = (value & 0b11) switch
+        {
+            0 => 0x2000,
+            1 => 0x2400,
+            2 => 0x2800,
+            3 => 0x2c00,
+            _ => throw new ArgumentOutOfRangeException() // primarily so the linter shuts up
+        };
     }
 }

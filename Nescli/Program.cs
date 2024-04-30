@@ -30,14 +30,15 @@ internal static class Program
         var asmRom = reader.ReadBytes(16384 * file.AsmSize);
         var graphicsRom = reader.ReadBytes(8192 * file.GraphicsSize);
 
-        var memoryControllerCpu = new MemoryController();
-        memoryControllerCpu.AddMemory(new PpuBusAdapter(), 0x2000, 0x4000);
-        memoryControllerCpu.AddMemory(new Rom(asmRom), 0x8000, 0x10000);
-        var cpu = new Cpu(memoryControllerCpu);
-
         var memoryControllerPpu = new MemoryController();
         memoryControllerPpu.AddMemory(new Rom(graphicsRom), 0x0000, 0x2000);
         var ppu = new Ppu(memoryControllerPpu);
+
+        var memoryControllerCpu = new MemoryController();
+        memoryControllerCpu.AddMemory(new PpuBusAdapter(ppu), 0x2000, 0x4000);
+        memoryControllerCpu.AddMemory(new Rom(asmRom), 0x8000, 0x10000);
+        var cpu = new Cpu(memoryControllerCpu);
+
 
         Task.Run(() =>
         {
