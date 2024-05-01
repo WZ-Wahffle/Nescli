@@ -40,6 +40,7 @@ internal static class Program
         memoryControllerCpu.AddMemory(new Stack(0x100), 0x100, 0x200);
         var cpu = new Cpu(memoryControllerCpu);
 
+        ppu.GenerateSpritesheet();
 
         Task.Run(() =>
         {
@@ -55,13 +56,14 @@ internal static class Program
                         Raylib.DrawPixel(i, j, ppu.FrameBuffer[i, j]);
                     }
                 }
+
                 Raylib.EndDrawing();
             }
 
             Raylib.CloseWindow();
         });
 
-        Thread.Sleep(5000);
+        Thread.Sleep(50000);
 
         // temporary implementation to help find unimplemented opcodes
         for (int i = 0; i < 100; i++) cpu.Run();

@@ -40,6 +40,22 @@ public class MemoryController
     }
 
     /// <summary>
+    /// The same as Read, except for values 8 bytes wide (may or may not break on Big Endian platforms, who knows at this point)
+    /// </summary>
+    /// <param name="position">Index of the first byte to be read</param>
+    /// <returns>The 8 read bytes</returns>
+    public ulong Read64(ushort position)
+    {
+        var buffer = new byte[8];
+        for (ushort i = 0; i < 8; i++)
+        {
+            buffer[i] = Read((ushort)(position + i));
+        }
+
+        return BitConverter.ToUInt64(buffer, 0);
+    }
+
+    /// <summary>
     /// Abstraction for putting values onto the address and data buses and providing a write signal
     /// </summary>
     /// <param name="position">Value on address bus</param>
@@ -60,7 +76,7 @@ public class MemoryController
     }
 
     /// <summary>
-    /// Finds the stack in the memory map, not very nice but does work
+    /// Finds the stack in the memory map, not very pretty but does work
     /// </summary>
     /// <returns>The stack, if found</returns>
     /// <exception cref="KeyNotFoundException">Thrown if there is no stack</exception>

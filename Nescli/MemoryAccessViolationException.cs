@@ -1,5 +1,10 @@
 namespace Nescli;
 
+/// <summary>
+/// Reports attempts to perform a memory access on a memory type
+/// which does not permit such an option, such as trying to write to ROM
+/// or trying to read an unmapped address
+/// </summary>
 [Serializable]
 public class MemoryAccessViolationException : Exception
 {

@@ -27,6 +27,9 @@ public class Cpu
         Interrupt(InterruptSource.Reset);
     }
 
+    /// <summary>
+    /// Describes the different interrupts the NES can handle
+    /// </summary>
     public enum InterruptSource
     {
         Irq,
@@ -391,6 +394,9 @@ public class Cpu
         };
     }
 
+    /// <summary>
+    /// Bits in the status register, primarily used to make setting and clearing more transparent
+    /// </summary>
     enum StatusBits
     {
         Carry = 0,
@@ -402,6 +408,11 @@ public class Cpu
         Negative = 7
     }
 
+    /// <summary>
+    /// Sets the state of a bit in the status register
+    /// </summary>
+    /// <param name="index">Bit to modify</param>
+    /// <param name="value">true if it should be set to 1, false otherwise</param>
     private void SetStatusBit(StatusBits index, bool value)
     {
         if (value)
