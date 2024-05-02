@@ -74,22 +74,4 @@ public class MemoryController
 
         throw new MemoryAccessViolationException($"Attempted to write to nonexistent address: {position}");
     }
-
-    /// <summary>
-    /// Finds the stack in the memory map, not very pretty but does work
-    /// </summary>
-    /// <returns>The stack, if found</returns>
-    /// <exception cref="KeyNotFoundException">Thrown if there is no stack</exception>
-    public Stack FindStack()
-    {
-        foreach (var i in _memory)
-        {
-            if(i.GetType() == typeof(Stack))
-            {
-                return (Stack)i;
-            }
-        }
-
-        throw new KeyNotFoundException("No stack found in memory controller");
-    }
 }

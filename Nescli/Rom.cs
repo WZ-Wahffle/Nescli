@@ -5,7 +5,7 @@ namespace Nescli;
 /// </summary>
 public class Rom : IMemory
 {
-    private byte[] _bytes;
+    private readonly byte[] _bytes;
 
     /// <summary>
     /// Allocates a new, empty ROM

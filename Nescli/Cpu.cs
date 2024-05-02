@@ -24,7 +24,6 @@ public class Cpu
     public Cpu(MemoryController mc)
     {
         _mc = mc;
-        Interrupt(InterruptSource.Reset);
     }
 
     /// <summary>
@@ -46,10 +45,9 @@ public class Cpu
     /// <exception cref="ArgumentOutOfRangeException">Thrown if invalid src value is provided</exception>
     public void Interrupt(InterruptSource src)
     {
-        var stack = _mc.FindStack();
-        stack.Push((byte)(Pc >> 8));
-        stack.Push((byte)(Pc & 0xff));
-        stack.Push(P);
+        PushToStack((byte)(Pc >> 8));
+        PushToStack((byte)(Pc & 0xff));
+        PushToStack(P);
         SetStatusBit(StatusBits.NotIrqDisable, true);
 
         var resetVector = src switch
@@ -202,7 +200,7 @@ public class Cpu
                     case AddressMode.IndexedAbsoluteY:
                     case AddressMode.ZeroPageIndirect:
                         A = (byte)ResolveAddressRead(ins);
-                        SetStatusBit(StatusBits.Carry, A == 0);
+                        SetStatusBit(StatusBits.Zero, A == 0);
                         SetStatusBit(StatusBits.Negative, A > 127);
                         break;
                     default:
@@ -211,7 +209,21 @@ public class Cpu
 
                 break;
             case Opcode.Ldx:
-                throw new NotImplementedException(ins.ToString());
+                switch (ins.AddressMode)
+                {
+                    case AddressMode.Immediate:
+                    case AddressMode.Absolute:
+                    case AddressMode.ZeroPage:
+                    case AddressMode.IndexedZeroPageY:
+                    case AddressMode.IndexedAbsoluteY:
+                        X = (byte)ResolveAddressRead(ins);
+                        SetStatusBit(StatusBits.Zero, X == 0);
+                        SetStatusBit(StatusBits.Negative, X > 127);
+                        break;
+                    default:
+                        throw new IllegalAddressModeException(ins);
+                }
+
                 break;
             case Opcode.Ldy:
                 throw new NotImplementedException(ins.ToString());
@@ -276,7 +288,7 @@ public class Cpu
                     throw new IllegalAddressModeException(ins);
                 }
 
-                P |= 0b100;
+                SetStatusBit(StatusBits.NotIrqDisable, true);
                 break;
             case Opcode.Sta:
                 switch (ins.AddressMode)
@@ -324,7 +336,12 @@ public class Cpu
                 throw new NotImplementedException(ins.ToString());
                 break;
             case Opcode.Txs:
-                throw new NotImplementedException(ins.ToString());
+                if (ins.AddressMode != AddressMode.Implied)
+                {
+                    throw new IllegalAddressModeException(ins);
+                }
+
+                S = X;
                 break;
             case Opcode.Tya:
                 throw new NotImplementedException(ins.ToString());
@@ -423,5 +440,23 @@ public class Cpu
         {
             P &= (byte)(0xff ^ (1 << (int)index));
         }
+    }
+
+    /// <summary>
+    /// Pushes to the stack located between 0x100 and 0x1ff, addresses based on S register
+    /// </summary>
+    /// <param name="value">Byte to push to stack</param>
+    private void PushToStack(byte value)
+    {
+        _mc.Write((ushort)(0x100 + S--), value);
+    }
+
+    /// <summary>
+    /// Pops from the stack located between 0x100 and 0x1ff, addresses based on S register
+    /// </summary>
+    /// <returns>Byte popped from stack</returns>
+    private byte PopFromStack()
+    {
+        return _mc.Read((ushort)(0x100 + S++));
     }
 }

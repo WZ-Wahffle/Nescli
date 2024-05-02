@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using Raylib_cs;
+﻿using Raylib_cs;
 
 namespace Nescli;
 
@@ -17,11 +16,12 @@ internal static class Program
             return;
         }
 
-        var file = new Ines(f.Length);
-
-        file.AsmSize = reader.ReadByte();
-        file.GraphicsSize = reader.ReadByte();
-        file.HeaderUnused = reader.ReadBytes(10);
+        var file = new Ines(f.Length)
+        {
+            AsmSize = reader.ReadByte(),
+            GraphicsSize = reader.ReadByte(),
+            HeaderUnused = reader.ReadBytes(10)
+        };
 
         Console.WriteLine("File size: " + file.FileSize + "b");
         Console.WriteLine("Program ROM size: " + file.AsmSize * 16384 + "b");
@@ -37,8 +37,10 @@ internal static class Program
         var memoryControllerCpu = new MemoryController();
         memoryControllerCpu.AddMemory(new PpuBusAdapter(ppu), 0x2000, 0x4000);
         memoryControllerCpu.AddMemory(new Rom(asmRom), 0x8000, 0x10000);
-        memoryControllerCpu.AddMemory(new Stack(0x100), 0x100, 0x200);
+        memoryControllerCpu.AddMemory(new Ram(0x800), 0x0, 0x800);
         var cpu = new Cpu(memoryControllerCpu);
+        cpu.Interrupt(Cpu.InterruptSource.Reset);
+
 
         ppu.GenerateSpritesheet();
 
@@ -63,7 +65,7 @@ internal static class Program
             Raylib.CloseWindow();
         });
 
-        Thread.Sleep(50000);
+        // Thread.Sleep(50000);
 
         // temporary implementation to help find unimplemented opcodes
         for (int i = 0; i < 100; i++) cpu.Run();
