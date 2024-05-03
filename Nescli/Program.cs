@@ -44,28 +44,9 @@ internal static class Program
 
         ppu.GenerateSpritesheet();
 
-        Task.Run(() =>
-        {
-            Raylib.InitWindow(256, 240, "Hello, World");
-            Raylib.SetTargetFPS(60);
-            while (!Raylib.WindowShouldClose())
-            {
-                Raylib.BeginDrawing();
-                for (var i = 0; i < ppu.FrameBuffer.GetLength(0); i++)
-                {
-                    for (var j = 0; j < ppu.FrameBuffer.GetLength(1); j++)
-                    {
-                        Raylib.DrawPixel(i, j, ppu.FrameBuffer[i, j]);
-                    }
-                }
+        ppu.StartRendering();
 
-                Raylib.EndDrawing();
-            }
-
-            Raylib.CloseWindow();
-        });
-
-        // Thread.Sleep(50000);
+        Thread.Sleep(50000);
 
         // temporary implementation to help find unimplemented opcodes
         for (int i = 0; i < 100; i++) cpu.Run();
