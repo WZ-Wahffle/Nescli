@@ -9,9 +9,11 @@ namespace Nescli;
 public class Ppu
 {
     private readonly MemoryController _mc;
-    public readonly Color[,] FrameBuffer;
+    private readonly Color[,] _frameBuffer;
     private ushort _baseNametableAddress;
-    private byte _status;
+    private bool _nmiFlag;
+    private bool _spriteZeroHitFlag;
+    private bool _spriteOverflowFlag;
 
     /// <summary>
     /// Constructs a new PPU and sets its framebuffer to a black screen
@@ -20,12 +22,12 @@ public class Ppu
     public Ppu(MemoryController mc)
     {
         _mc = mc;
-        FrameBuffer = new Color[256, 240];
-        for (var i = 0; i < FrameBuffer.GetLength(0); i++)
+        _frameBuffer = new Color[256, 240];
+        for (var i = 0; i < _frameBuffer.GetLength(0); i++)
         {
-            for (var j = 0; j < FrameBuffer.GetLength(1); j++)
+            for (var j = 0; j < _frameBuffer.GetLength(1); j++)
             {
-                FrameBuffer[i, j] = new Color(0, 0, 0, 255);
+                _frameBuffer[i, j] = new Color(0, 0, 0, 255);
             }
         }
     }
@@ -46,9 +48,16 @@ public class Ppu
         };
     }
 
+    /// <summary>
+    /// Gets the status of the PPU, to inform the CPU where the rendering process is
+    /// </summary>
+    /// <returns>The status bits, see NesDev wiki</returns>
     public byte ReadPpuStatus()
     {
-        throw new NotImplementedException();
+        var ret = (_nmiFlag ? 0x80 : 0)
+                  | (_spriteZeroHitFlag ? 0x40 : 0)
+                  | (_spriteOverflowFlag ? 0x20 : 0);
+        return (byte)ret;
     }
 
     /// <summary>
@@ -82,22 +91,22 @@ public class Ppu
                     {
                         // y is always stepped through in reverse, since y screen coordinates
                         // are flipped compared to the internal model of the CHR data
-                        FrameBuffer[xOffset + x, yOffset + (7 - y)] = new Color(0x0, 0x0, 0x0, 0xff);
+                        _frameBuffer[xOffset + x, yOffset + (7 - y)] = new Color(0x0, 0x0, 0x0, 0xff);
                     }
                     else
                     {
-                        FrameBuffer[xOffset + x, yOffset + (7 - y)] = new Color(0x80, 0x80, 0x80, 0xff);
+                        _frameBuffer[xOffset + x, yOffset + (7 - y)] = new Color(0x80, 0x80, 0x80, 0xff);
                     }
                 }
                 else
                 {
                     if ((l2 & (1ul << j)) != 0)
                     {
-                        FrameBuffer[xOffset + x, yOffset + (7 - y)] = new Color(0x40, 0x40, 0x40, 0xff);
+                        _frameBuffer[xOffset + x, yOffset + (7 - y)] = new Color(0x40, 0x40, 0x40, 0xff);
                     }
                     else
                     {
-                        FrameBuffer[xOffset + x, yOffset + (7 - y)] = new Color(0xc0, 0xc0, 0xc0, 0xff);
+                        _frameBuffer[xOffset + x, yOffset + (7 - y)] = new Color(0xc0, 0xc0, 0xc0, 0xff);
                     }
                 }
 
@@ -125,16 +134,20 @@ public class Ppu
             Raylib.SetTargetFPS(60);
             while (!Raylib.WindowShouldClose())
             {
+                _nmiFlag = false;
+                _spriteZeroHitFlag = false;
+                _spriteOverflowFlag = false;
                 Raylib.BeginDrawing();
-                for (var i = 0; i < FrameBuffer.GetLength(0); i++)
+                for (var i = 0; i < _frameBuffer.GetLength(0); i++)
                 {
-                    for (var j = 0; j < FrameBuffer.GetLength(1); j++)
+                    for (var j = 0; j < _frameBuffer.GetLength(1); j++)
                     {
-                        Raylib.DrawPixel(i, j, FrameBuffer[i, j]);
+                        Raylib.DrawPixel(i, j, _frameBuffer[i, j]);
                     }
                 }
 
                 Raylib.EndDrawing();
+                _nmiFlag = true;
             }
 
             Raylib.CloseWindow();
