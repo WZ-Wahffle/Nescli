@@ -1,6 +1,4 @@
-﻿using Raylib_cs;
-
-namespace Nescli;
+﻿namespace Nescli;
 
 internal static class Program
 {
@@ -12,7 +10,7 @@ internal static class Program
         // ensure file header is intact
         if (!reader.ReadBytes(4).SequenceEqual(new byte[] { 0x4e, 0x45, 0x53, 0x1a }))
         {
-            throw new ArgumentException("Invalid iNES file heade");
+            throw new ArgumentException("Invalid iNES file header");
         }
 
         var file = new Ines(reader.ReadBytes(12));
@@ -39,9 +37,9 @@ internal static class Program
 
         ppu.StartRendering();
 
-        // Thread.Sleep(50000);
+        Thread.Sleep(1000);
 
         // temporary implementation to help find unimplemented opcodes
-        for (int i = 0; i < 100; i++) cpu.Run();
+        while(true) cpu.Run();
     }
 }

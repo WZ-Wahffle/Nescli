@@ -78,7 +78,14 @@ public class Cpu
 
         var instruction = new Instruction(opcode.Item1, opcode.Item2, extraBytes);
         Console.WriteLine(instruction);
-        Execute(instruction);
+        try
+        {
+            Execute(instruction);
+        }
+        catch (Exception e)
+        {
+            throw new MemoryAccessViolationException($"Address: 0x{Pc:x}", e);
+        }
     }
 
     /// <summary>
@@ -87,7 +94,6 @@ public class Cpu
     /// <param name="ins">Instruction to execute</param>
     /// <exception cref="NotImplementedException">Thrown if instruction has not been implemented yet</exception>
     /// <exception cref="IllegalAddressModeException">Thrown if address mode in instruction is undefined for opcode</exception>
-    /// <exception cref="ArgumentOutOfRangeException"></exception>
     public void Execute(Instruction ins)
     {
         switch (ins.Op)
@@ -105,7 +111,16 @@ public class Cpu
                 throw new NotImplementedException(ins.ToString());
                 break;
             case Opcode.Bcs:
-                throw new NotImplementedException(ins.ToString());
+                if (ins.AddressMode != AddressMode.Relative)
+                {
+                    throw new IllegalAddressModeException(ins);
+                }
+
+                if (GetStatusBit(StatusBits.Carry))
+                {
+                    Pc = ResolveAddressWrite(ins);
+                }
+
                 break;
             case Opcode.Beq:
                 throw new NotImplementedException(ins.ToString());
@@ -117,10 +132,28 @@ public class Cpu
                 throw new NotImplementedException(ins.ToString());
                 break;
             case Opcode.Bne:
-                throw new NotImplementedException(ins.ToString());
+                if (ins.AddressMode != AddressMode.Relative)
+                {
+                    throw new IllegalAddressModeException(ins);
+                }
+
+                if (GetStatusBit(StatusBits.Zero) == false)
+                {
+                    Pc = ResolveAddressWrite(ins);
+                }
+
                 break;
             case Opcode.Bpl:
-                throw new NotImplementedException(ins.ToString());
+                if (ins.AddressMode != AddressMode.Relative)
+                {
+                    throw new IllegalAddressModeException(ins);
+                }
+
+                if (GetStatusBit(StatusBits.Negative) == false)
+                {
+                    Pc = ResolveAddressWrite(ins);
+                }
+
                 break;
             case Opcode.Bra:
                 throw new NotImplementedException(ins.ToString());
@@ -152,22 +185,135 @@ public class Cpu
                 throw new NotImplementedException(ins.ToString());
                 break;
             case Opcode.Cmp:
-                throw new NotImplementedException(ins.ToString());
+                switch (ins.AddressMode)
+                {
+                    case AddressMode.Immediate:
+                    case AddressMode.Absolute:
+                    case AddressMode.ZeroPage:
+                    case AddressMode.IndexedIndirect:
+                    case AddressMode.IndirectIndexed:
+                    case AddressMode.IndexedZeroPageX:
+                    case AddressMode.IndexedAbsoluteX:
+                    case AddressMode.IndexedAbsoluteY:
+                    case AddressMode.ZeroPageIndirect:
+                        var cmp = ResolveAddressRead(ins);
+                        if (A < cmp)
+                        {
+                            SetStatusBit(StatusBits.Negative, ((A - cmp) & 0x80) != 0);
+                            SetStatusBit(StatusBits.Zero, false);
+                            SetStatusBit(StatusBits.Carry, false);
+                        }
+
+                        if (A == cmp)
+                        {
+                            SetStatusBit(StatusBits.Negative, false);
+                            SetStatusBit(StatusBits.Zero, true);
+                            SetStatusBit(StatusBits.Carry, true);
+                        }
+
+                        if (A < cmp)
+                        {
+                            SetStatusBit(StatusBits.Negative, ((A - cmp) & 0x80) != 0);
+                            SetStatusBit(StatusBits.Zero, false);
+                            SetStatusBit(StatusBits.Carry, true);
+                        }
+
+                        break;
+                    default:
+                        throw new IllegalAddressModeException(ins);
+                }
+
                 break;
             case Opcode.Cpx:
-                throw new NotImplementedException(ins.ToString());
+                switch (ins.AddressMode)
+                {
+                    case AddressMode.Immediate:
+                    case AddressMode.Absolute:
+                    case AddressMode.ZeroPage:
+                        var cmp = ResolveAddressRead(ins);
+                        if (X < cmp)
+                        {
+                            SetStatusBit(StatusBits.Negative, ((X - cmp) & 0x80) != 0);
+                            SetStatusBit(StatusBits.Zero, false);
+                            SetStatusBit(StatusBits.Carry, false);
+                        }
+
+                        if (X == cmp)
+                        {
+                            SetStatusBit(StatusBits.Negative, false);
+                            SetStatusBit(StatusBits.Zero, true);
+                            SetStatusBit(StatusBits.Carry, true);
+                        }
+
+                        if (X < cmp)
+                        {
+                            SetStatusBit(StatusBits.Negative, ((X - cmp) & 0x80) != 0);
+                            SetStatusBit(StatusBits.Zero, false);
+                            SetStatusBit(StatusBits.Carry, true);
+                        }
+
+                        break;
+                    default:
+                        throw new IllegalAddressModeException(ins);
+                }
+
                 break;
             case Opcode.Cpy:
-                throw new NotImplementedException(ins.ToString());
+                switch (ins.AddressMode)
+                {
+                    case AddressMode.Immediate:
+                    case AddressMode.Absolute:
+                    case AddressMode.ZeroPage:
+                        var cmp = ResolveAddressRead(ins);
+                        if (Y < cmp)
+                        {
+                            SetStatusBit(StatusBits.Negative, ((Y - cmp) & 0x80) != 0);
+                            SetStatusBit(StatusBits.Zero, false);
+                            SetStatusBit(StatusBits.Carry, false);
+                        }
+
+                        if (Y == cmp)
+                        {
+                            SetStatusBit(StatusBits.Negative, false);
+                            SetStatusBit(StatusBits.Zero, true);
+                            SetStatusBit(StatusBits.Carry, true);
+                        }
+
+                        if (Y < cmp)
+                        {
+                            SetStatusBit(StatusBits.Negative, ((Y - cmp) & 0x80) != 0);
+                            SetStatusBit(StatusBits.Zero, false);
+                            SetStatusBit(StatusBits.Carry, true);
+                        }
+
+                        break;
+                    default:
+                        throw new IllegalAddressModeException(ins);
+                }
+
                 break;
             case Opcode.Dec:
                 throw new NotImplementedException(ins.ToString());
                 break;
             case Opcode.Dex:
-                throw new NotImplementedException(ins.ToString());
+                if (ins.AddressMode != AddressMode.Implied)
+                {
+                    throw new IllegalAddressModeException(ins);
+                }
+
+                X--;
+                SetStatusBit(StatusBits.Zero, X == 0);
+                SetStatusBit(StatusBits.Negative, X >> 7 != 0);
                 break;
             case Opcode.Dey:
-                throw new NotImplementedException(ins.ToString());
+                if (ins.AddressMode != AddressMode.Implied)
+                {
+                    throw new IllegalAddressModeException(ins);
+                }
+
+                Y--;
+                SetStatusBit(StatusBits.Zero, Y == 0);
+                SetStatusBit(StatusBits.Negative, Y >> 7 != 0);
                 break;
             case Opcode.Eor:
                 throw new NotImplementedException(ins.ToString());
@@ -185,7 +331,15 @@ public class Cpu
                 throw new NotImplementedException(ins.ToString());
                 break;
             case Opcode.Jsr:
-                throw new NotImplementedException(ins.ToString());
+                if (ins.AddressMode != AddressMode.Absolute)
+                {
+                    throw new IllegalAddressModeException(ins);
+                }
+
+                Pc += 2;
+                PushToStack((byte)(Pc >> 8));
+                PushToStack((byte)(Pc & 0xff));
+                Pc = ResolveAddressWrite(ins);
                 break;
             case Opcode.Lda:
                 switch (ins.AddressMode)
@@ -226,7 +380,21 @@ public class Cpu
 
                 break;
             case Opcode.Ldy:
-                throw new NotImplementedException(ins.ToString());
+                switch (ins.AddressMode)
+                {
+                    case AddressMode.Immediate:
+                    case AddressMode.Absolute:
+                    case AddressMode.ZeroPage:
+                    case AddressMode.IndexedZeroPageX:
+                    case AddressMode.IndexedAbsoluteX:
+                        Y = (byte)ResolveAddressRead(ins);
+                        SetStatusBit(StatusBits.Zero, X == 0);
+                        SetStatusBit(StatusBits.Negative, X > 127);
+                        break;
+                    default:
+                        throw new IllegalAddressModeException(ins);
+                }
+
                 break;
             case Opcode.Lsr:
                 throw new NotImplementedException(ins.ToString());
@@ -271,7 +439,15 @@ public class Cpu
                 throw new NotImplementedException(ins.ToString());
                 break;
             case Opcode.Rts:
-                throw new NotImplementedException(ins.ToString());
+                if (ins.AddressMode != AddressMode.Implied)
+                {
+                    throw new IllegalAddressModeException(ins);
+                }
+
+                var lb = PopFromStack();
+                var hb = PopFromStack();
+                Pc = (ushort)((hb << 8) | lb);
+                Pc++;
                 break;
             case Opcode.Sbc:
                 throw new NotImplementedException(ins.ToString());
@@ -309,7 +485,17 @@ public class Cpu
 
                 break;
             case Opcode.Stx:
-                throw new NotImplementedException(ins.ToString());
+                switch (ins.AddressMode)
+                {
+                    case AddressMode.Absolute:
+                    case AddressMode.ZeroPage:
+                    case AddressMode.IndexedZeroPageY:
+                        _mc.Write(ResolveAddressWrite(ins), X);
+                        break;
+                    default:
+                        throw new IllegalAddressModeException(ins);
+                }
+
                 break;
             case Opcode.Sty:
                 throw new NotImplementedException(ins.ToString());
@@ -406,7 +592,7 @@ public class Cpu
             AddressMode.IndexedZeroPageY => (byte)(_mc.Read(ins.ExtraBytes[0]) + Y),
             AddressMode.IndexedAbsoluteX => (ushort)((ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8) + X),
             AddressMode.IndexedAbsoluteY => (ushort)((ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8) + Y),
-            AddressMode.Relative => (ushort)(Pc + (ins.ExtraBytes[0] - 128)),
+            AddressMode.Relative => (ushort)(Pc + (ins.ExtraBytes[0] - ((ins.ExtraBytes[0] & 0x80) != 0 ? 256 : 0))),
             _ => throw new IllegalAddressModeException(ins)
         };
     }
@@ -443,6 +629,16 @@ public class Cpu
     }
 
     /// <summary>
+    /// Gets the state of a bit in the status register
+    /// </summary>
+    /// <param name="index">Bit to get</param>
+    /// <returns>True if the bit is set, false otherwise</returns>
+    private bool GetStatusBit(StatusBits index)
+    {
+        return (P & (1 << (int)index)) != 0;
+    }
+
+    /// <summary>
     /// Pushes to the stack located between 0x100 and 0x1ff, addresses based on S register
     /// </summary>
     /// <param name="value">Byte to push to stack</param>
@@ -457,6 +653,6 @@ public class Cpu
     /// <returns>Byte popped from stack</returns>
     private byte PopFromStack()
     {
-        return _mc.Read((ushort)(0x100 + S++));
+        return _mc.Read((ushort)(0x100 + ++S));
     }
 }

@@ -72,6 +72,6 @@ public class MemoryController
             }
         }
 
-        throw new MemoryAccessViolationException($"Attempted to write to nonexistent address: {position}");
+        throw new MemoryAccessViolationException($"Attempted to write to nonexistent address: 0x{position:x}");
     }
 }

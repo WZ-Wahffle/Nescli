@@ -11,9 +11,9 @@ public class Ppu
     private readonly MemoryController _mc;
     private readonly Color[,] _frameBuffer;
     private ushort _baseNametableAddress;
-    private bool _nmiFlag;
-    private bool _spriteZeroHitFlag;
-    private bool _spriteOverflowFlag;
+    private bool _nmiFlag = true;
+    private bool _spriteZeroHitFlag = true;
+    private bool _spriteOverflowFlag = true;
 
     /// <summary>
     /// Constructs a new PPU and sets its framebuffer to a black screen
@@ -57,6 +57,7 @@ public class Ppu
         var ret = (_nmiFlag ? 0x80 : 0)
                   | (_spriteZeroHitFlag ? 0x40 : 0)
                   | (_spriteOverflowFlag ? 0x20 : 0);
+        _nmiFlag = false;
         return (byte)ret;
     }
 
