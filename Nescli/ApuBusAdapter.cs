@@ -6,7 +6,7 @@ namespace Nescli;
 /// </summary>
 public class ApuBusAdapter : IMemory
 {
-    private Apu _apu;
+    private readonly Apu _apu;
 
     public ApuBusAdapter(Apu apu)
     {

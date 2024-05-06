@@ -14,6 +14,14 @@ public class Ppu
     private bool _nmiFlag = true;
     private bool _spriteZeroHitFlag = true;
     private bool _spriteOverflowFlag = true;
+    private bool _greyscaleMode = false;
+    private bool _showBackgroundLeftmost = false;
+    private bool _showSpriteLeftmost = false;
+    private bool _showBackground = false;
+    private bool _showSprites = false;
+    private bool _emphasizeRed = false;
+    private bool _emphasizeGreen = false;
+    private bool _emphasizeBlue = false;
 
     /// <summary>
     /// NTSC color palette
@@ -117,6 +125,18 @@ public class Ppu
             3 => 0x2c00,
             _ => 0 // so the linter stops complaining about non-exhaustive switches
         };
+    }
+
+    public void WritePpuMask(byte value)
+    {
+        _greyscaleMode = (value & 0b1) != 0;
+        _showBackgroundLeftmost = (value & 0b10) != 0;
+        _showSpriteLeftmost = (value & 0b100) != 0;
+        _showBackground = (value & 0b1000) != 0;
+        _showSprites = (value & 0b10000) != 0;
+        _emphasizeRed = (value & 0b100000) != 0;
+        _emphasizeGreen = (value & 0b1000000) != 0;
+        _emphasizeBlue = (value & 0b10000000) != 0;
     }
 
     /// <summary>

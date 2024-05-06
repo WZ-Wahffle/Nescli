@@ -6,7 +6,7 @@ namespace Nescli;
 /// </summary>
 public class PpuBusAdapter : IMemory
 {
-    private Ppu _ppu;
+    private readonly Ppu _ppu;
 
     public PpuBusAdapter(Ppu ppu)
     {
@@ -55,6 +55,7 @@ public class PpuBusAdapter : IMemory
                 _ppu.WritePpuCtrl(value);
                 break;
             case PpuRegister.PpuMask:
+                _ppu.WritePpuMask(value);
                 break;
             default:
                 throw new NotImplementedException();
