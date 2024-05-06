@@ -1,7 +1,7 @@
 namespace Nescli;
 
 /// <summary>
-/// Represents the 6502 CPU inside an NES as well, whose only way of
+/// Represents the 6502 CPU inside an NES, whose only way of
 /// interfacing with the outside world is over the address and data lines,
 /// emulated by the MemoryController member
 /// </summary>

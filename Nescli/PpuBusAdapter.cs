@@ -13,7 +13,7 @@ public class PpuBusAdapter : IMemory
         _ppu = ppu;
     }
 
-    public enum PpuRegister
+    private enum PpuRegister
     {
         PpuCtrl,
         PpuMask,
@@ -34,10 +34,10 @@ public class PpuBusAdapter : IMemory
     /// <exception cref="MemoryAccessViolationException">Thrown if register is write-only</exception>
     public byte Read(ushort position)
     {
-        return (position % 8) switch
+        return (PpuRegister)(position % 8) switch
         {
-            (int)PpuRegister.PpuCtrl => throw new MemoryAccessViolationException(),
-            (int)PpuRegister.PpuStatus => _ppu.ReadPpuStatus(),
+            PpuRegister.PpuCtrl => throw new MemoryAccessViolationException(),
+            PpuRegister.PpuStatus => _ppu.ReadPpuStatus(),
             _ => throw new NotImplementedException()
         };
     }
@@ -49,10 +49,12 @@ public class PpuBusAdapter : IMemory
     /// <param name="value">The value to write there</param>
     public void Write(ushort position, byte value)
     {
-        switch (position % 8)
+        switch ((PpuRegister)(position % 8))
         {
-            case (int)PpuRegister.PpuCtrl:
+            case PpuRegister.PpuCtrl:
                 _ppu.WritePpuCtrl(value);
+                break;
+            case PpuRegister.PpuMask:
                 break;
             default:
                 throw new NotImplementedException();
