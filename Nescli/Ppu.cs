@@ -8,6 +8,11 @@ namespace Nescli;
 /// </summary>
 public class Ppu
 {
+    public ushort V;
+    public ushort T;
+    public byte X;
+    public bool W;
+    private byte _vramAddressIncrementPerDataReadWrite;
     private readonly MemoryController _mc;
     private readonly int[,] _frameBuffer;
     private ushort _baseNametableAddress;
@@ -125,6 +130,8 @@ public class Ppu
             3 => 0x2c00,
             _ => 0 // so the linter stops complaining about non-exhaustive switches
         };
+
+        _vramAddressIncrementPerDataReadWrite = (byte)((value & 0b100) != 0 ? 32 : 1);
     }
 
     public void WritePpuMask(byte value)
@@ -140,11 +147,44 @@ public class Ppu
     }
 
     /// <summary>
+    /// Edits the 16-bit VRAM address, one byte at a time
+    /// </summary>
+    /// <param name="value">High byte on first call, low byte on second</param>
+    public void WritePpuAddr(byte value)
+    {
+        if (W)
+        {
+            T &= 0b1111111100000000;
+            T |= value;
+            V = T;
+            W = false;
+        }
+        else
+        {
+            value &= 0b111111;
+            T &= 0b11111111;
+            T |= (ushort)(value << 8);
+            W = true;
+        }
+    }
+
+    /// <summary>
+    /// Writes to VRAM, based on address loaded into V register
+    /// </summary>
+    /// <param name="value">Value to write into implicit address</param>
+    public void WritePpuData(byte value)
+    {
+        _mc.Write(V, value);
+        V += _vramAddressIncrementPerDataReadWrite;
+    }
+
+    /// <summary>
     /// Gets the status of the PPU, to inform the CPU where the rendering process is
     /// </summary>
     /// <returns>The status bits, see NesDev wiki</returns>
     public byte ReadPpuStatus()
     {
+        W = false;
         var ret = (_nmiFlag ? 0x80 : 0)
                   | (_spriteZeroHitFlag ? 0x40 : 0)
                   | (_spriteOverflowFlag ? 0x20 : 0);

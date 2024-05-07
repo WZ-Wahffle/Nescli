@@ -102,7 +102,25 @@ public class Cpu
                 throw new NotImplementedException(ins.ToString());
                 break;
             case Opcode.And:
-                throw new NotImplementedException(ins.ToString());
+                switch (ins.AddressMode)
+                {
+                    case AddressMode.Immediate:
+                    case AddressMode.Absolute:
+                    case AddressMode.ZeroPage:
+                    case AddressMode.IndirectIndexed:
+                    case AddressMode.IndexedIndirect:
+                    case AddressMode.IndexedZeroPageX:
+                    case AddressMode.IndexedAbsoluteX:
+                    case AddressMode.IndexedAbsoluteY:
+                    case AddressMode.ZeroPageIndirect:
+                        A &= (byte)ResolveAddressRead(ins);
+                        SetStatusBit(StatusBits.Zero, A == 0);
+                        SetStatusBit(StatusBits.Negative, (A & 0b10000000) != 0);
+                        break;
+                    default:
+                        throw new IllegalAddressModeException(ins);
+                }
+
                 break;
             case Opcode.Asl:
                 throw new NotImplementedException(ins.ToString());
@@ -600,7 +618,15 @@ public class Cpu
                 throw new NotImplementedException(ins.ToString());
                 break;
             case Opcode.Txa:
-                throw new NotImplementedException(ins.ToString());
+                if (ins.AddressMode != AddressMode.Implied)
+                {
+                    throw new IllegalAddressModeException(ins);
+                }
+
+                A = X;
+                SetStatusBit(StatusBits.Zero, A == 0);
+                SetStatusBit(StatusBits.Negative, (A & 0b10000000) != 0);
+
                 break;
             case Opcode.Txs:
                 if (ins.AddressMode != AddressMode.Implied)

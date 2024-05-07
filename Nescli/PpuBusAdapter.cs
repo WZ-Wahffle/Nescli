@@ -57,6 +57,12 @@ public class PpuBusAdapter : IMemory
             case PpuRegister.PpuMask:
                 _ppu.WritePpuMask(value);
                 break;
+            case PpuRegister.PpuAddr:
+                _ppu.WritePpuAddr(value);
+                break;
+            case PpuRegister.PpuData:
+                _ppu.WritePpuData(value);
+                break;
             default:
                 throw new NotImplementedException();
         }

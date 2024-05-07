@@ -12,6 +12,8 @@ public class Apu
     private bool _enableNoise;
     private bool _enableDeltaModulationChannel;
 
+    private byte _dmc;
+
     /// <summary>
     /// Used to enable or disable individual channels
     /// </summary>
@@ -23,5 +25,14 @@ public class Apu
         _enableTriangle = (value & 0b100) != 0;
         _enableNoise = (value & 0b1000) != 0;
         _enableDeltaModulationChannel = (value & 0b10000) != 0;
+    }
+
+    /// <summary>
+    /// Sets the Delta Modulation Channel to a specific value
+    /// </summary>
+    /// <param name="value">>The value to set it to</param>
+    public void SetDmcValue(byte value)
+    {
+        _dmc = (byte)(value & 0b1111111);
     }
 }

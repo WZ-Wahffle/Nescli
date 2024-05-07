@@ -23,6 +23,7 @@ internal static class Program
 
         var memoryControllerPpu = new MemoryController();
         memoryControllerPpu.AddMemory(new Rom(graphicsRom), 0x0000, 0x2000);
+        memoryControllerPpu.AddMemory(new Ram(0x1000), 0x2000, 0x3000);
         var ppu = new Ppu(memoryControllerPpu);
 
         var apu = new Apu();

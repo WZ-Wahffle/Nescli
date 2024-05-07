@@ -22,11 +22,14 @@ public class ApuBusAdapter : IMemory
     {
         switch (position)
         {
+            case 0x11:
+                _apu.SetDmcValue(value);
+                break;
             case 0x15:
                 _apu.SetStatus(value);
                 break;
             default:
-                throw new NotImplementedException();
+                throw new NotImplementedException(position.ToString());
         }
     }
 }
