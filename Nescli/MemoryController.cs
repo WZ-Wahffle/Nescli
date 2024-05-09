@@ -7,6 +7,7 @@ public class MemoryController
 {
     private IMemory[] _memory = [];
     private Range[] _mapping = [];
+    private byte _intermediate;
 
     /// <summary>
     /// Add a memory component to the ram bus of the processor

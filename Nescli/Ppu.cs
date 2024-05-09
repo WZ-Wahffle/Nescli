@@ -1,4 +1,4 @@
-using System.Data;
+using System.Threading.Channels;
 using Raylib_cs;
 
 namespace Nescli;
@@ -9,6 +9,7 @@ namespace Nescli;
 /// </summary>
 public class Ppu
 {
+    private Channel<Cpu.InterruptSource> _channel;
     public ushort V;
     public ushort T;
     public byte X;
@@ -110,8 +111,10 @@ public class Ppu
     /// Constructs a new PPU and sets its framebuffer to a black screen
     /// </summary>
     /// <param name="mc">The memory controller to attach</param>
-    public Ppu(MemoryController mc)
+    /// <param name="channel">A reference to a channel to send NMIs to, receiving end should be given to a CPU</param>
+    public Ppu(MemoryController mc, Channel<Cpu.InterruptSource> channel)
     {
+        _channel = channel;
         _mc = mc;
         _frameBuffer = new int[256, 240];
         for (var i = 0; i < _frameBuffer.GetLength(0); i++)
@@ -309,6 +312,7 @@ public class Ppu
 
                 Raylib.EndDrawing();
                 _nmiFlag = true;
+                if (_enableNmi) _channel.Writer.TryWrite(Cpu.InterruptSource.Nmi);
             }
 
             Raylib.CloseWindow();

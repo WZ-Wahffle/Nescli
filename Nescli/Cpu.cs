@@ -1,3 +1,5 @@
+using System.Threading.Channels;
+
 namespace Nescli;
 
 /// <summary>
@@ -8,6 +10,7 @@ namespace Nescli;
 public class Cpu
 {
     private readonly MemoryController _mc;
+    private Channel<InterruptSource> _channel;
     private ushort Pc { get; set; }
     public byte A { get; private set; } = 0;
     public byte X { get; private set; } = 0;
@@ -21,8 +24,10 @@ public class Cpu
     /// the outside world otherwise
     /// </summary>
     /// <param name="mc">The memory map to assign to the processor</param>
-    public Cpu(MemoryController mc)
+    /// <param name="channel">A reference to a channel to receive interrupts from</param>
+    public Cpu(MemoryController mc, Channel<InterruptSource> channel)
     {
+        _channel = channel;
         _mc = mc;
     }
 
@@ -43,7 +48,7 @@ public class Cpu
     /// </summary>
     /// <param name="src">The source of the interrupt</param>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if invalid src value is provided</exception>
-    public void Interrupt(InterruptSource src)
+    private void Interrupt(InterruptSource src)
     {
         PushToStack((byte)(Pc >> 8));
         PushToStack((byte)(Pc & 0xff));
@@ -80,7 +85,15 @@ public class Cpu
         Console.WriteLine(instruction);
         try
         {
-            Execute(instruction);
+            if (_channel.Reader.TryRead(out InterruptSource source))
+            {
+                Console.WriteLine($"INT {source}");
+                Interrupt(source);
+            }
+            else
+            {
+                Execute(instruction);
+            }
         }
         catch (Exception e)
         {
@@ -92,7 +105,6 @@ public class Cpu
     /// Performs the actions associated with an instruction
     /// </summary>
     /// <param name="ins">Instruction to execute</param>
-    /// <exception cref="NotImplementedException">Thrown if instruction has not been implemented yet</exception>
     /// <exception cref="IllegalAddressModeException">Thrown if address mode in instruction is undefined for opcode</exception>
     public void Execute(Instruction ins)
     {

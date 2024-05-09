@@ -1,4 +1,6 @@
-﻿namespace Nescli;
+﻿using System.Threading.Channels;
+
+namespace Nescli;
 
 internal static class Program
 {
@@ -21,10 +23,12 @@ internal static class Program
         var asmRom = reader.ReadBytes(file.AsmSize);
         var graphicsRom = reader.ReadBytes(file.GraphicsSize);
 
+        var channel = Channel.CreateBounded<Cpu.InterruptSource>(10);
+
         var memoryControllerPpu = new MemoryController();
         memoryControllerPpu.AddMemory(new Rom(graphicsRom), 0x0000, 0x2000);
         memoryControllerPpu.AddMemory(new Ram(0x1000), 0x2000, 0x3000);
-        var ppu = new Ppu(memoryControllerPpu);
+        var ppu = new Ppu(memoryControllerPpu, channel);
 
         var apu = new Apu();
 
@@ -33,9 +37,9 @@ internal static class Program
         memoryControllerCpu.AddMemory(new ApuBusAdapter(apu), 0x4000, 0x4018);
         memoryControllerCpu.AddMemory(new Rom(asmRom), 0x8000, 0x10000);
         memoryControllerCpu.AddMemory(new Ram(0x800), 0x0, 0x800);
-        var cpu = new Cpu(memoryControllerCpu);
-        cpu.Interrupt(Cpu.InterruptSource.Reset);
+        var cpu = new Cpu(memoryControllerCpu, channel);
 
+        channel.Writer.TryWrite(Cpu.InterruptSource.Reset);
 
         ppu.GenerateSpritesheet();
 
