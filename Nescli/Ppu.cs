@@ -1,3 +1,4 @@
+using System.Data;
 using Raylib_cs;
 
 namespace Nescli;
@@ -13,8 +14,14 @@ public class Ppu
     public byte X;
     public bool W;
     private byte _vramAddressIncrementPerDataReadWrite;
+    private bool _useHigherPatternTableSprites;
+    private bool _useHigherPatternTableBackgrounds;
+    private bool _useWideSprites;
+    private bool _enableNmi;
     private readonly MemoryController _mc;
     private readonly int[,] _frameBuffer;
+    private int _xScroll;
+    private int _yScroll;
     private ushort _baseNametableAddress;
     private bool _nmiFlag = true;
     private bool _spriteZeroHitFlag = true;
@@ -132,6 +139,10 @@ public class Ppu
         };
 
         _vramAddressIncrementPerDataReadWrite = (byte)((value & 0b100) != 0 ? 32 : 1);
+        _useHigherPatternTableSprites = (value & 0b1000) != 0;
+        _useHigherPatternTableBackgrounds = (value & 0b10000) != 0;
+        _useWideSprites = (value & 0b100000) != 0;
+        _enableNmi = (value & 0b10000000) != 0;
     }
 
     public void WritePpuMask(byte value)
@@ -176,6 +187,24 @@ public class Ppu
     {
         _mc.Write(V, value);
         V += _vramAddressIncrementPerDataReadWrite;
+    }
+
+    /// <summary>
+    /// Modifies the scrolling state across the VRAM
+    /// </summary>
+    /// <param name="value">X position on first call, Y position on second</param>
+    public void WritePpuScroll(byte value)
+    {
+        if (W)
+        {
+            _yScroll = value;
+            W = false;
+        }
+        else
+        {
+            _xScroll = value;
+            W = true;
+        }
     }
 
     /// <summary>

@@ -41,7 +41,7 @@ internal static class Program
 
         ppu.StartRendering();
 
-        Thread.Sleep(1000);
+        // Thread.Sleep(100000);
 
         // temporary implementation to help find unimplemented opcodes
         while(true) cpu.Run();

@@ -63,6 +63,9 @@ public class PpuBusAdapter : IMemory
             case PpuRegister.PpuData:
                 _ppu.WritePpuData(value);
                 break;
+            case PpuRegister.PpuScroll:
+                _ppu.WritePpuScroll(value);
+                break;
             default:
                 throw new NotImplementedException();
         }
