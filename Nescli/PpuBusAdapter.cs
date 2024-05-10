@@ -57,14 +57,20 @@ public class PpuBusAdapter : IMemory
             case PpuRegister.PpuMask:
                 _ppu.WritePpuMask(value);
                 break;
+            case PpuRegister.OamAddr:
+                _ppu.WriteOamAddr(value);
+                break;
+            case PpuRegister.OamData:
+                _ppu.WriteOamData(value);
+                break;
+            case PpuRegister.PpuScroll:
+                _ppu.WritePpuScroll(value);
+                break;
             case PpuRegister.PpuAddr:
                 _ppu.WritePpuAddr(value);
                 break;
             case PpuRegister.PpuData:
                 _ppu.WritePpuData(value);
-                break;
-            case PpuRegister.PpuScroll:
-                _ppu.WritePpuScroll(value);
                 break;
             default:
                 throw new NotImplementedException();

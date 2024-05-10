@@ -21,6 +21,17 @@ public class Ppu
     private bool _enableNmi;
     private readonly MemoryController _mc;
     private readonly int[,] _frameBuffer;
+
+    private class OamObject
+    {
+        public byte YCoordinate;
+        public byte TileNo;
+        public byte Attribute;
+        public byte XCoordinate;
+    }
+    private OamObject[] _oam = new OamObject[64];
+    private byte _oamAddress;
+
     private int _xScroll;
     private int _yScroll;
     private ushort _baseNametableAddress;
@@ -35,6 +46,7 @@ public class Ppu
     private bool _emphasizeRed = false;
     private bool _emphasizeGreen = false;
     private bool _emphasizeBlue = false;
+
 
     /// <summary>
     /// NTSC color palette
@@ -124,6 +136,11 @@ public class Ppu
                 _frameBuffer[i, j] = 0x3f;
             }
         }
+
+        for (var i = 0; i < _oam.Length; i++)
+        {
+            _oam[i] = new OamObject();
+        }
     }
 
     /// <summary>
@@ -208,6 +225,40 @@ public class Ppu
             _xScroll = value;
             W = true;
         }
+    }
+
+    /// <summary>
+    /// Write a value into the address offset within the OAM
+    /// </summary>
+    /// <param name="value">Value to write</param>
+    public void WriteOamAddr(byte value)
+    {
+        _oamAddress = value;
+    }
+
+    /// <summary>
+    /// Write a value at the current OAM address
+    /// </summary>
+    /// <param name="value">Value to write</param>
+    public void WriteOamData(byte value)
+    {
+        switch (_oamAddress % 4)
+        {
+            case 0:
+                _oam[_oamAddress / 4].YCoordinate = value;
+                break;
+            case 1:
+                _oam[_oamAddress / 4].TileNo = value;
+                break;
+            case 2:
+                _oam[_oamAddress / 4].Attribute = value;
+                break;
+            case 3:
+                _oam[_oamAddress / 4].XCoordinate = value;
+                break;
+        }
+
+        _oamAddress++;
     }
 
     /// <summary>

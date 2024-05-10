@@ -12,11 +12,12 @@ public class Cpu
     private readonly MemoryController _mc;
     private Channel<InterruptSource> _channel;
     private ushort Pc { get; set; }
-    public byte A { get; private set; } = 0;
-    public byte X { get; private set; } = 0;
-    public byte Y { get; private set; } = 0;
-    public byte S { get; private set; } = 0;
-    public byte P { get; private set; } = 0;
+    private ushort OldPc { get; set; }
+    public byte A { get; private set; }
+    public byte X { get; private set; }
+    public byte Y { get; private set; }
+    public byte S { get; private set; }
+    public byte P { get; private set; }
 
     /// <summary>
     /// Memory handling is managed through constructor injection,
@@ -29,6 +30,37 @@ public class Cpu
     {
         _channel = channel;
         _mc = mc;
+    }
+
+    /// <summary>
+    /// Wrapper around reading from the bus, since some addresses have exceptional behaviour
+    /// </summary>
+    /// <param name="position">Value on the address bus</param>
+    /// <returns>Value received on data bus</returns>
+    public byte Read(ushort position)
+    {
+        return _mc.Read(position);
+    }
+
+    /// <summary>
+    /// Wrapper around writing to the bus, since some addresses have exceptional behaviour
+    /// </summary>
+    /// <param name="position">Value on address bus</param>
+    /// <param name="value">Value on data bus</param>
+    public void Write(ushort position, byte value)
+    {
+        // OAMDMA workaround, must be caught here since the PPU has no way of requesting it itself
+        if (position == 0x4014)
+        {
+            for (var i = 0; i < 0x100; i++)
+            {
+                _mc.Write(0x2004, _mc.Read((ushort)((value << 8) + i)));
+            }
+
+            return;
+        }
+
+        _mc.Write(position, value);
     }
 
     /// <summary>
@@ -50,8 +82,8 @@ public class Cpu
     /// <exception cref="ArgumentOutOfRangeException">Thrown if invalid src value is provided</exception>
     private void Interrupt(InterruptSource src)
     {
-        PushToStack((byte)(Pc >> 8));
-        PushToStack((byte)(Pc & 0xff));
+        PushToStack((byte)(OldPc >> 8));
+        PushToStack((byte)(OldPc & 0xff));
         PushToStack(P);
         SetStatusBit(StatusBits.NotIrqDisable, true);
 
@@ -65,7 +97,7 @@ public class Cpu
             _ => throw new ArgumentOutOfRangeException(nameof(src), src, null)
         };
 
-        Pc = (ushort)((_mc.Read(resetVector.Item1) << 8) | _mc.Read(resetVector.Item2));
+        Pc = (ushort)((Read(resetVector.Item1) << 8) | Read(resetVector.Item2));
     }
 
     /// <summary>
@@ -73,21 +105,20 @@ public class Cpu
     /// </summary>
     public void Run()
     {
-        var unresolvedOp = _mc.Read(Pc++);
+        OldPc = Pc;
+        var unresolvedOp = Read(Pc++);
         var opcode = Decoder.Decode(unresolvedOp);
         var extraBytes = new byte[Decoder.ResolveRemainingBytes(opcode.Item2)];
         for (var i = 0; i < extraBytes.Length; i++)
         {
-            extraBytes[i] = _mc.Read(Pc++);
+            extraBytes[i] = Read(Pc++);
         }
 
         var instruction = new Instruction(opcode.Item1, opcode.Item2, extraBytes);
-        Console.WriteLine(instruction);
         try
         {
             if (_channel.Reader.TryRead(out InterruptSource source))
             {
-                Console.WriteLine($"INT {source}");
                 Interrupt(source);
             }
             else
@@ -135,10 +166,40 @@ public class Cpu
 
                 break;
             case Opcode.Asl:
-                throw new NotImplementedException(ins.ToString());
+                switch (ins.AddressMode)
+                {
+                    case AddressMode.Accumulator:
+                        SetStatusBit(StatusBits.Carry, (A & 0b10000000) != 0);
+                        A <<= 1;
+                        SetStatusBit(StatusBits.Negative, (A & 0b10000000) != 0);
+                        SetStatusBit(StatusBits.Zero, A == 0);
+                        break;
+                    case AddressMode.Absolute:
+                    case AddressMode.ZeroPage:
+                    case AddressMode.IndexedZeroPageX:
+                    case AddressMode.IndexedAbsoluteX:
+                        SetStatusBit(StatusBits.Carry, (ResolveAddressRead(ins) & 0b10000000) != 0);
+                        Write(ResolveAddressWrite(ins), (byte)(ResolveAddressRead(ins) << 1));
+                        SetStatusBit(StatusBits.Negative, (ResolveAddressRead(ins) & 0b10000000) != 0);
+                        SetStatusBit(StatusBits.Zero, ResolveAddressRead(ins) == 0);
+                        break;
+                    default:
+                        throw new IllegalAddressModeException(ins);
+                }
+
+                break;
                 break;
             case Opcode.Bcc:
-                throw new NotImplementedException(ins.ToString());
+                if (ins.AddressMode != AddressMode.Relative)
+                {
+                    throw new IllegalAddressModeException(ins);
+                }
+
+                if (GetStatusBit(StatusBits.Carry) == false)
+                {
+                    Pc = ResolveAddressWrite(ins);
+                }
+
                 break;
             case Opcode.Bcs:
                 if (ins.AddressMode != AddressMode.Relative)
@@ -153,7 +214,16 @@ public class Cpu
 
                 break;
             case Opcode.Beq:
-                throw new NotImplementedException(ins.ToString());
+                if (ins.AddressMode != AddressMode.Relative)
+                {
+                    throw new IllegalAddressModeException(ins);
+                }
+
+                if (GetStatusBit(StatusBits.Zero))
+                {
+                    Pc = ResolveAddressWrite(ins);
+                }
+
                 break;
             case Opcode.Bit:
                 switch (ins.AddressMode)
@@ -213,7 +283,12 @@ public class Cpu
                 throw new NotImplementedException(ins.ToString());
                 break;
             case Opcode.Clc:
-                throw new NotImplementedException(ins.ToString());
+                if (ins.AddressMode != AddressMode.Implied)
+                {
+                    throw new IllegalAddressModeException(ins);
+                }
+
+                SetStatusBit(StatusBits.Carry, false);
                 break;
             case Opcode.Cld:
                 if (ins.AddressMode != AddressMode.Implied)
@@ -338,7 +413,21 @@ public class Cpu
 
                 break;
             case Opcode.Dec:
-                throw new NotImplementedException(ins.ToString());
+                switch (ins.AddressMode)
+                {
+                    case AddressMode.Absolute:
+                    case AddressMode.ZeroPage:
+                    case AddressMode.IndexedZeroPageX:
+                    case AddressMode.IndexedAbsoluteX:
+                        var result = ResolveAddressRead(ins) - 1;
+                        SetStatusBit(StatusBits.Negative, result < 0);
+                        SetStatusBit(StatusBits.Zero, result == 0);
+                        Write(ResolveAddressWrite(ins), (byte)result);
+                        break;
+                    default:
+                        throw new IllegalAddressModeException(ins);
+                }
+
                 break;
             case Opcode.Dex:
                 if (ins.AddressMode != AddressMode.Implied)
@@ -389,8 +478,8 @@ public class Cpu
                     case AddressMode.IndexedZeroPageX:
                     case AddressMode.IndexedAbsoluteX:
                         var addr = ResolveAddressWrite(ins);
-                        var value = (byte)(_mc.Read(addr) + 1);
-                        _mc.Write(addr, value);
+                        var value = (byte)(Read(addr) + 1);
+                        Write(addr, value);
                         SetStatusBit(StatusBits.Zero, value == 0);
                         SetStatusBit(StatusBits.Negative, (value & 0b10000000) != 0);
                         break;
@@ -400,7 +489,15 @@ public class Cpu
 
                 break;
             case Opcode.Inx:
-                throw new NotImplementedException(ins.ToString());
+                if (ins.AddressMode != AddressMode.Implied)
+                {
+                    throw new IllegalAddressModeException(ins);
+                }
+
+                X++;
+                SetStatusBit(StatusBits.Negative, (X & 0b10000000) != 0);
+                SetStatusBit(StatusBits.Zero, X == 0);
+
                 break;
             case Opcode.Iny:
                 if (ins.AddressMode != AddressMode.Implied)
@@ -491,7 +588,27 @@ public class Cpu
 
                 break;
             case Opcode.Lsr:
-                throw new NotImplementedException(ins.ToString());
+                switch (ins.AddressMode)
+                {
+                    case AddressMode.Accumulator:
+                        SetStatusBit(StatusBits.Carry, (A & 0b1) != 0);
+                        A >>= 1;
+                        SetStatusBit(StatusBits.Negative, false);
+                        SetStatusBit(StatusBits.Zero, A == 0);
+                        break;
+                    case AddressMode.Absolute:
+                    case AddressMode.ZeroPage:
+                    case AddressMode.IndexedZeroPageX:
+                    case AddressMode.IndexedAbsoluteX:
+                        SetStatusBit(StatusBits.Carry, (ResolveAddressRead(ins) & 0b1) != 0);
+                        Write(ResolveAddressWrite(ins), (byte)(ResolveAddressRead(ins) >> 1));
+                        SetStatusBit(StatusBits.Negative, false);
+                        SetStatusBit(StatusBits.Zero, ResolveAddressRead(ins) == 0);
+                        break;
+                    default:
+                        throw new IllegalAddressModeException(ins);
+                }
+
                 break;
             case Opcode.Nop:
                 throw new NotImplementedException(ins.ToString());
@@ -518,7 +635,12 @@ public class Cpu
 
                 break;
             case Opcode.Pha:
-                throw new NotImplementedException(ins.ToString());
+                if (ins.AddressMode != AddressMode.Implied)
+                {
+                    throw new IllegalAddressModeException(ins);
+                }
+
+                PushToStack(A);
                 break;
             case Opcode.Php:
                 throw new NotImplementedException(ins.ToString());
@@ -530,7 +652,14 @@ public class Cpu
                 throw new NotImplementedException(ins.ToString());
                 break;
             case Opcode.Pla:
-                throw new NotImplementedException(ins.ToString());
+                if (ins.AddressMode != AddressMode.Implied)
+                {
+                    throw new IllegalAddressModeException(ins);
+                }
+
+                A = PopFromStack();
+                SetStatusBit(StatusBits.Negative, (A & 0b10000000) != 0);
+                SetStatusBit(StatusBits.Zero, A == 0);
                 break;
             case Opcode.Plp:
                 throw new NotImplementedException(ins.ToString());
@@ -542,13 +671,69 @@ public class Cpu
                 throw new NotImplementedException(ins.ToString());
                 break;
             case Opcode.Rol:
-                throw new NotImplementedException(ins.ToString());
+                switch (ins.AddressMode)
+                {
+                    case AddressMode.Accumulator:
+                        byte newA = (byte)(GetStatusBit(StatusBits.Carry) ? 1 : 0);
+                        newA |= (byte)(A << 1);
+                        SetStatusBit(StatusBits.Carry, (A & 0b10000000) != 0);
+                        A = newA;
+                        SetStatusBit(StatusBits.Negative, (A & 0b10000000) != 0);
+                        SetStatusBit(StatusBits.Zero, A == 0);
+                        break;
+                    case AddressMode.Absolute:
+                    case AddressMode.ZeroPage:
+                    case AddressMode.IndexedZeroPageX:
+                    case AddressMode.IndexedAbsoluteX:
+                        byte newVal = (byte)(GetStatusBit(StatusBits.Carry) ? 1 : 0);
+                        newVal |= (byte)(ResolveAddressRead(ins) << 1);
+                        SetStatusBit(StatusBits.Carry, (ResolveAddressRead(ins) & 0b10000000) != 0);
+                        Write(ResolveAddressWrite(ins), newVal);
+                        SetStatusBit(StatusBits.Negative, (ResolveAddressRead(ins) & 0b10000000) != 0);
+                        SetStatusBit(StatusBits.Zero, ResolveAddressRead(ins) == 0);
+                        break;
+                    default:
+                        throw new IllegalAddressModeException(ins);
+                }
+
                 break;
             case Opcode.Ror:
-                throw new NotImplementedException(ins.ToString());
+                switch (ins.AddressMode)
+                {
+                    case AddressMode.Accumulator:
+                        byte newA = (byte)(GetStatusBit(StatusBits.Carry) ? 0b10000000 : 0);
+                        newA |= (byte)(A >> 1);
+                        SetStatusBit(StatusBits.Carry, (A & 1) != 0);
+                        A = newA;
+                        SetStatusBit(StatusBits.Negative, (A & 0b10000000) != 0);
+                        SetStatusBit(StatusBits.Zero, A == 0);
+                        break;
+                    case AddressMode.Absolute:
+                    case AddressMode.ZeroPage:
+                    case AddressMode.IndexedZeroPageX:
+                    case AddressMode.IndexedAbsoluteX:
+                        byte newVal = (byte)(GetStatusBit(StatusBits.Carry) ? 0b10000000 : 0);
+                        newVal |= (byte)(ResolveAddressRead(ins) >> 1);
+                        SetStatusBit(StatusBits.Carry, (ResolveAddressRead(ins) & 1) != 0);
+                        Write(ResolveAddressWrite(ins), newVal);
+                        SetStatusBit(StatusBits.Negative, (ResolveAddressRead(ins) & 0b10000000) != 0);
+                        SetStatusBit(StatusBits.Zero, ResolveAddressRead(ins) == 0);
+                        break;
+                    default:
+                        throw new IllegalAddressModeException(ins);
+                }
+
                 break;
             case Opcode.Rti:
-                throw new NotImplementedException(ins.ToString());
+                if (ins.AddressMode != AddressMode.Implied)
+                {
+                    throw new IllegalAddressModeException(ins);
+                }
+
+                P = PopFromStack();
+                var lb2 = PopFromStack();
+                var hb2 = PopFromStack();
+                Pc = (ushort)((hb2 << 8) | lb2);
                 break;
             case Opcode.Rts:
                 if (ins.AddressMode != AddressMode.Implied)
@@ -561,10 +746,36 @@ public class Cpu
                 Pc = (ushort)((hb << 8) | lb);
                 break;
             case Opcode.Sbc:
-                throw new NotImplementedException(ins.ToString());
+                switch (ins.AddressMode)
+                {
+                    case AddressMode.Immediate:
+                    case AddressMode.Absolute:
+                    case AddressMode.ZeroPage:
+                    case AddressMode.IndexedIndirect:
+                    case AddressMode.IndirectIndexed:
+                    case AddressMode.IndexedZeroPageX:
+                    case AddressMode.IndexedAbsoluteX:
+                    case AddressMode.IndexedAbsoluteY:
+                    case AddressMode.ZeroPageIndirect:
+                        int result = A - ResolveAddressRead(ins) - (GetStatusBit(StatusBits.Carry) ? 0 : 1);
+                        SetStatusBit(StatusBits.Zero, result == 0);
+                        SetStatusBit(StatusBits.Carry, result >= 0);
+                        SetStatusBit(StatusBits.Overflow, result < -128);
+                        SetStatusBit(StatusBits.Negative, result < 0);
+                        Write(ResolveAddressWrite(ins), (byte)result);
+                        break;
+                    default:
+                        throw new IllegalAddressModeException(ins);
+                }
+
                 break;
             case Opcode.Sec:
-                throw new NotImplementedException(ins.ToString());
+                if (ins.AddressMode != AddressMode.Implied)
+                {
+                    throw new IllegalAddressModeException(ins);
+                }
+
+                SetStatusBit(StatusBits.Carry, true);
                 break;
             case Opcode.Sed:
                 throw new NotImplementedException(ins.ToString());
@@ -588,7 +799,7 @@ public class Cpu
                     case AddressMode.IndexedAbsoluteX:
                     case AddressMode.IndexedAbsoluteY:
                     case AddressMode.ZeroPageIndirect:
-                        _mc.Write(ResolveAddressWrite(ins), A);
+                        Write(ResolveAddressWrite(ins), A);
                         break;
                     default:
                         throw new IllegalAddressModeException(ins);
@@ -601,7 +812,7 @@ public class Cpu
                     case AddressMode.Absolute:
                     case AddressMode.ZeroPage:
                     case AddressMode.IndexedZeroPageY:
-                        _mc.Write(ResolveAddressWrite(ins), X);
+                        Write(ResolveAddressWrite(ins), X);
                         break;
                     default:
                         throw new IllegalAddressModeException(ins);
@@ -615,10 +826,25 @@ public class Cpu
                 throw new NotImplementedException(ins.ToString());
                 break;
             case Opcode.Tax:
-                throw new NotImplementedException(ins.ToString());
+                if (ins.AddressMode != AddressMode.Implied)
+                {
+                    throw new IllegalAddressModeException(ins);
+                }
+
+                X = A;
+                SetStatusBit(StatusBits.Zero, X == 0);
+                SetStatusBit(StatusBits.Negative, (X & 0b10000000) != 0);
+
                 break;
             case Opcode.Tay:
-                throw new NotImplementedException(ins.ToString());
+                if (ins.AddressMode != AddressMode.Implied)
+                {
+                    throw new IllegalAddressModeException(ins);
+                }
+
+                Y = A;
+                SetStatusBit(StatusBits.Zero, Y == 0);
+                SetStatusBit(StatusBits.Negative, (Y & 0b10000000) != 0);
                 break;
             case Opcode.Trb:
                 throw new NotImplementedException(ins.ToString());
@@ -667,26 +893,19 @@ public class Cpu
         return ins.AddressMode switch
         {
             AddressMode.Immediate => ins.ExtraBytes[0],
-            AddressMode.Absolute => _mc.Read((ushort)(ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8)),
-            AddressMode.ZeroPage => _mc.Read(ins.ExtraBytes[0]),
-            AddressMode.IndexedIndirect => _mc.Read((ushort)(_mc.Read((byte)(ins.ExtraBytes[0] + X)) |
-                                                             _mc.Read((byte)(ins.ExtraBytes[0] + X + 1)) << 8)),
-            AddressMode.IndirectIndexed => _mc.Read((ushort)(_mc.Read(ins.ExtraBytes[0]) +
-                                                             (_mc.Read((ushort)(ins.ExtraBytes[0] + 1)) << 8) + Y)),
-            AddressMode.IndexedZeroPageX => _mc.Read((byte)(_mc.Read(ins.ExtraBytes[0]) + X)),
-            AddressMode.IndexedZeroPageY => _mc.Read((byte)(_mc.Read(ins.ExtraBytes[0]) + Y)),
-            AddressMode.IndexedAbsoluteX => _mc.Read((ushort)((ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8) + X)),
-            AddressMode.IndexedAbsoluteY => _mc.Read((ushort)((ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8) + Y)),
-            AddressMode.AbsoluteIndirect => _mc.Read(_mc.Read((ushort)(ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8))) |
-                                            _mc.Read(_mc.Read(
-                                                (ushort)((ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8) + 1))) << 8,
-            AddressMode.AbsoluteIndexedIndirect => _mc.Read(_mc.Read((ushort)((ins.ExtraBytes[0] |
-                                                                               ins.ExtraBytes[1] << 8) + X))) |
-                                                   _mc.Read(_mc.Read(
-                                                       (ushort)((ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8) + 1 +
-                                                                X))) << 8,
-            AddressMode.ZeroPageIndirect => _mc.Read((ushort)(_mc.Read(ins.ExtraBytes[0]) |
-                                                              _mc.Read((ushort)(ins.ExtraBytes[0] + 1)) << 8)),
+            AddressMode.Absolute => Read((ushort)(ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8)),
+            AddressMode.ZeroPage => Read(ins.ExtraBytes[0]),
+            AddressMode.Accumulator => A,
+            AddressMode.IndexedIndirect => Read((ushort)(Read((byte)(ins.ExtraBytes[0] + X)) |
+                                                         Read((byte)(ins.ExtraBytes[0] + X + 1)) << 8)),
+            AddressMode.IndirectIndexed => Read((ushort)(Read(ins.ExtraBytes[0]) +
+                                                         (Read((ushort)(ins.ExtraBytes[0] + 1)) << 8) + Y)),
+            AddressMode.IndexedZeroPageX => Read((byte)(Read(ins.ExtraBytes[0]) + X)),
+            AddressMode.IndexedZeroPageY => Read((byte)(Read(ins.ExtraBytes[0]) + Y)),
+            AddressMode.IndexedAbsoluteX => Read((ushort)((ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8) + X)),
+            AddressMode.IndexedAbsoluteY => Read((ushort)((ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8) + Y)),
+            AddressMode.ZeroPageIndirect => Read((ushort)(Read(ins.ExtraBytes[0]) |
+                                                          Read((ushort)(ins.ExtraBytes[0] + 1)) << 8)),
             _ => throw new IllegalAddressModeException(ins)
         };
     }
@@ -703,15 +922,21 @@ public class Cpu
         {
             AddressMode.Absolute => (ushort)(ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8),
             AddressMode.ZeroPage => ins.ExtraBytes[0],
-            AddressMode.IndexedIndirect => (ushort)(_mc.Read((byte)(ins.ExtraBytes[0] + X)) |
-                                                    _mc.Read((byte)(ins.ExtraBytes[0] + X + 1)) << 8),
-            AddressMode.IndirectIndexed => (ushort)(_mc.Read(ins.ExtraBytes[0]) +
-                                                    (_mc.Read((ushort)(ins.ExtraBytes[0] + 1)) << 8) + Y),
-            AddressMode.IndexedZeroPageX => (byte)(_mc.Read(ins.ExtraBytes[0]) + X),
-            AddressMode.IndexedZeroPageY => (byte)(_mc.Read(ins.ExtraBytes[0]) + Y),
+            AddressMode.IndexedIndirect => (ushort)(Read((byte)(ins.ExtraBytes[0] + X)) |
+                                                    Read((byte)(ins.ExtraBytes[0] + X + 1)) << 8),
+            AddressMode.IndirectIndexed => (ushort)(Read(ins.ExtraBytes[0]) +
+                                                    (Read((ushort)(ins.ExtraBytes[0] + 1)) << 8) + Y),
+            AddressMode.IndexedZeroPageX => (byte)(Read(ins.ExtraBytes[0]) + X),
+            AddressMode.IndexedZeroPageY => (byte)(Read(ins.ExtraBytes[0]) + Y),
             AddressMode.IndexedAbsoluteX => (ushort)((ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8) + X),
             AddressMode.IndexedAbsoluteY => (ushort)((ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8) + Y),
             AddressMode.Relative => (ushort)(Pc + (ins.ExtraBytes[0] - ((ins.ExtraBytes[0] & 0x80) != 0 ? 256 : 0))),
+            AddressMode.AbsoluteIndirect => (ushort)
+                (Read((ushort)(ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8)) |
+                 (Read((ushort)((ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8) + 1)) << 8)),
+            AddressMode.AbsoluteIndexedIndirect => (ushort)
+                (Read((ushort)((ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8) + X)) |
+                 (Read((ushort)((ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8) + 1 + X)) << 8)),
             _ => throw new IllegalAddressModeException(ins)
         };
     }
@@ -763,7 +988,7 @@ public class Cpu
     /// <param name="value">Byte to push to stack</param>
     private void PushToStack(byte value)
     {
-        _mc.Write((ushort)(0x100 + S--), value);
+        Write((ushort)(0x100 + S--), value);
     }
 
     /// <summary>
@@ -772,6 +997,6 @@ public class Cpu
     /// <returns>Byte popped from stack</returns>
     private byte PopFromStack()
     {
-        return _mc.Read((ushort)(0x100 + ++S));
+        return Read((ushort)(0x100 + ++S));
     }
 }
