@@ -23,7 +23,6 @@ public class PpuBusAdapter : IMemory
         PpuScroll,
         PpuAddr,
         PpuData,
-        OamDma
     }
 
     /// <summary>

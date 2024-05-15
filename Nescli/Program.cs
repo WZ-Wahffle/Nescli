@@ -4,9 +4,9 @@ namespace Nescli;
 
 internal static class Program
 {
-    public static void Main()
+    public static void Main(string[] args)
     {
-        using var f = File.OpenRead("/home/mvauderw/RiderProjects/Nescli/Nescli/smb1.nes");
+        using var f = File.OpenRead(args[0]);
         using BinaryReader reader = new(f);
 
         // ensure file header is intact

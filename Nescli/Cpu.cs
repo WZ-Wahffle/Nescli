@@ -142,7 +142,28 @@ public class Cpu
         switch (ins.Op)
         {
             case Opcode.Adc:
-                throw new NotImplementedException(ins.ToString());
+                switch (ins.AddressMode)
+                {
+                    case AddressMode.Immediate:
+                    case AddressMode.Absolute:
+                    case AddressMode.ZeroPage:
+                    case AddressMode.IndexedIndirect:
+                    case AddressMode.IndirectIndexed:
+                    case AddressMode.IndexedZeroPageX:
+                    case AddressMode.IndexedAbsoluteX:
+                    case AddressMode.IndexedAbsoluteY:
+                    case AddressMode.ZeroPageIndirect:
+                        var result = ResolveAddressRead(ins) + A + (GetStatusBit(StatusBits.Carry) ? 1 : 0);
+                        SetStatusBit(StatusBits.Overflow, result is > 255 or < 0);
+                        SetStatusBit(StatusBits.Negative, (result & 0b10000000) != 0);
+                        SetStatusBit(StatusBits.Carry, result > 255);
+                        SetStatusBit(StatusBits.Zero, result % 256 == 0);
+                        A = (byte)result;
+                        break;
+                    default:
+                        throw new IllegalAddressModeException(ins);
+                }
+
                 break;
             case Opcode.And:
                 switch (ins.AddressMode)
@@ -820,7 +841,17 @@ public class Cpu
 
                 break;
             case Opcode.Sty:
-                throw new NotImplementedException(ins.ToString());
+                switch (ins.AddressMode)
+                {
+                    case AddressMode.Absolute:
+                    case AddressMode.ZeroPage:
+                    case AddressMode.IndexedZeroPageX:
+                        Write(ResolveAddressWrite(ins), Y);
+                        break;
+                    default:
+                        throw new IllegalAddressModeException(ins);
+                }
+
                 break;
             case Opcode.Stz:
                 throw new NotImplementedException(ins.ToString());
@@ -875,7 +906,14 @@ public class Cpu
                 S = X;
                 break;
             case Opcode.Tya:
-                throw new NotImplementedException(ins.ToString());
+                if (ins.AddressMode != AddressMode.Implied)
+                {
+                    throw new IllegalAddressModeException(ins);
+                }
+
+                A = Y;
+                SetStatusBit(StatusBits.Zero, A == 0);
+                SetStatusBit(StatusBits.Negative, (A & 0b10000000) != 0);
                 break;
             default:
                 throw new ArgumentOutOfRangeException();

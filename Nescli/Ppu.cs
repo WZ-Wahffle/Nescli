@@ -29,6 +29,7 @@ public class Ppu
         public byte Attribute;
         public byte XCoordinate;
     }
+
     private OamObject[] _oam = new OamObject[64];
     private byte _oamAddress;
 
@@ -275,6 +276,65 @@ public class Ppu
         return (byte)ret;
     }
 
+    public void DrawBackground()
+    {
+        if (!_showBackground) return;
+        for (var x = 0; x < 256; x += 8)
+        {
+            for (var y = 0; y < 240; y += 8)
+            {
+            }
+        }
+
+    }
+
+    /// <summary>
+    /// Fetches a tile for the background, dependent on the background pattern table offset
+    /// </summary>
+    /// <param name="index">The index of the pattern, between 0 and 512, exclusively</param>
+    /// <returns>A 8x8 array containing color indices between 0 and 3, inclusively</returns>
+    public int[,] FetchTileBackground(int index)
+    {
+        ulong l1 = _mc.Read64((ushort)(index * 16 + (_useHigherPatternTableBackgrounds ? 0x1000 : 0)));
+        ulong l2 = _mc.Read64((ushort)(index * 16 + 8 + (_useHigherPatternTableBackgrounds ? 0x1000 : 0)));
+        var ret = new int[8, 8];
+
+        var x = 0;
+        var y = 0;
+        for (var j = 63; j >= 0; j--)
+        {
+            if ((l1 & (1ul << j)) != 0)
+            {
+                if ((l2 & (1ul << j)) != 0)
+                {
+                    ret[x, y] = 3;
+                }
+                else
+                {
+                    ret[x, y] = 2;
+                }
+            }
+            else
+            {
+                if ((l2 & (1ul << j)) != 0)
+                {
+                    ret[x, y] = 1;
+                }
+                else
+                {
+                    ret[x, y] = 0;
+                }
+            }
+
+            x++;
+            if (x != 8) continue;
+            x %= 8;
+            y++;
+        }
+
+        return ret;
+    }
+
     /// <summary>
     /// Fills the framebuffer with the CHR Rom as a big spritesheet, for debug purposes
     /// </summary>
@@ -352,6 +412,7 @@ public class Ppu
                 _nmiFlag = false;
                 _spriteZeroHitFlag = false;
                 _spriteOverflowFlag = false;
+                Raylib.PollInputEvents();
                 Raylib.BeginDrawing();
                 for (var i = 0; i < _frameBuffer.GetLength(0); i++)
                 {
