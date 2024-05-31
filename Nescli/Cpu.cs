@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Threading.Channels;
 
 namespace Nescli;
@@ -11,7 +12,7 @@ public class Cpu
 {
     private readonly MemoryController _mc;
     private Channel<InterruptSource> _channel;
-    private ushort Pc { get; set; }
+    public ushort Pc { get; set; }
     private ushort OldPc { get; set; }
     public byte A { get; private set; }
     public byte X { get; private set; }
@@ -103,6 +104,7 @@ public class Cpu
     /// <summary>
     /// Fetches, decodes and executes a single instruction
     /// </summary>
+    [SuppressMessage("ReSharper.DPA", "DPA0000: DPA issues")]
     public void Run()
     {
         OldPc = Pc;

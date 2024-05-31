@@ -51,10 +51,11 @@ public class ApuBusAdapter : IMemory
             case 0x16:
                 if ((value & 1) == 0)
                 {
+                    Raylib.PollInputEvents();
                     _ioShiftRegisterP1 = 0;
                     _ioShiftRegisterP1 |= (byte)((Raylib.IsKeyDown(KeyboardKey.A) ? 1 : 0) << 0);
                     _ioShiftRegisterP1 |= (byte)((Raylib.IsKeyDown(KeyboardKey.B) ? 1 : 0) << 1);
-                    _ioShiftRegisterP1 |= (byte)((Raylib.IsKeyDown(KeyboardKey.Escape) ? 1 : 0) << 2);
+                    _ioShiftRegisterP1 |= (byte)((Raylib.IsKeyDown(KeyboardKey.Backspace) ? 1 : 0) << 2);
                     _ioShiftRegisterP1 |= (byte)((Raylib.IsKeyDown(KeyboardKey.Enter) ? 1 : 0) << 3);
                     _ioShiftRegisterP1 |= (byte)((Raylib.IsKeyDown(KeyboardKey.Up) ? 1 : 0) << 4);
                     _ioShiftRegisterP1 |= (byte)((Raylib.IsKeyDown(KeyboardKey.Down) ? 1 : 0) << 5);

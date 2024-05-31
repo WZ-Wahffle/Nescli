@@ -35,7 +35,7 @@ internal static class Program
         var memoryControllerCpu = new MemoryController();
         memoryControllerCpu.AddMemory(new PpuBusAdapter(ppu), 0x2000, 0x4000);
         memoryControllerCpu.AddMemory(new ApuBusAdapter(apu), 0x4000, 0x4018);
-        memoryControllerCpu.AddMemory(new Rom(asmRom), 0x8000, 0x10000);
+        memoryControllerCpu.AddMemory(new MirroredRom(asmRom, 0x8000), 0x8000, 0x10000);
         memoryControllerCpu.AddMemory(new Ram(0x800), 0x0, 0x800);
         var cpu = new Cpu(memoryControllerCpu, channel);
 
@@ -44,8 +44,6 @@ internal static class Program
         ppu.GenerateSpritesheet();
 
         ppu.StartRendering();
-
-        // Thread.Sleep(100000);
 
         // temporary implementation to help find unimplemented opcodes
         while(true) cpu.Run();
