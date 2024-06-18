@@ -940,8 +940,8 @@ public class Cpu
                                                          Read((byte)(ins.ExtraBytes[0] + X + 1)) << 8)),
             AddressMode.IndirectIndexed => Read((ushort)(Read(ins.ExtraBytes[0]) +
                                                          (Read((ushort)(ins.ExtraBytes[0] + 1)) << 8) + Y)),
-            AddressMode.IndexedZeroPageX => Read((byte)(Read(ins.ExtraBytes[0]) + X)),
-            AddressMode.IndexedZeroPageY => Read((byte)(Read(ins.ExtraBytes[0]) + Y)),
+            AddressMode.IndexedZeroPageX => (byte)(Read(ins.ExtraBytes[0]) + X),
+            AddressMode.IndexedZeroPageY => (byte)(Read(ins.ExtraBytes[0]) + Y),
             AddressMode.IndexedAbsoluteX => Read((ushort)((ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8) + X)),
             AddressMode.IndexedAbsoluteY => Read((ushort)((ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8) + Y)),
             AddressMode.ZeroPageIndirect => Read((ushort)(Read(ins.ExtraBytes[0]) |
@@ -966,8 +966,8 @@ public class Cpu
                                                     Read((byte)(ins.ExtraBytes[0] + X + 1)) << 8),
             AddressMode.IndirectIndexed => (ushort)(Read(ins.ExtraBytes[0]) +
                                                     (Read((ushort)(ins.ExtraBytes[0] + 1)) << 8) + Y),
-            AddressMode.IndexedZeroPageX => (byte)(Read(ins.ExtraBytes[0]) + X),
-            AddressMode.IndexedZeroPageY => (byte)(Read(ins.ExtraBytes[0]) + Y),
+            AddressMode.IndexedZeroPageX => (byte)(ins.ExtraBytes[0] + X),
+            AddressMode.IndexedZeroPageY => (byte)(ins.ExtraBytes[0] + Y),
             AddressMode.IndexedAbsoluteX => (ushort)((ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8) + X),
             AddressMode.IndexedAbsoluteY => (ushort)((ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8) + Y),
             AddressMode.Relative => (ushort)(Pc + (ins.ExtraBytes[0] - ((ins.ExtraBytes[0] & 0x80) != 0 ? 256 : 0))),
