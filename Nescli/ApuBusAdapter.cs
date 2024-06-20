@@ -63,6 +63,9 @@ public class ApuBusAdapter : IMemory
                     _ioShiftRegisterP1 |= (byte)((Raylib.IsKeyDown(KeyboardKey.Right) ? 1 : 0) << 7);
                 }
                 break;
+            case 0x17:
+                    _apu.SetFrameCounterOptions(value);
+                break;
             // as of now no way of getting P2 input
             default:
                 throw new NotImplementedException(position.ToString());

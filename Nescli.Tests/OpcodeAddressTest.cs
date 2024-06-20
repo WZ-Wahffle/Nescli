@@ -9,7 +9,7 @@ namespace Nescli.Tests;
 public class OpcodeAddressTest
 {
     [TestMethod]
-    public void TestAddressing()
+    public void TestAddressingRead()
     {
         MemoryController memCtl = new MemoryController();
         memCtl.AddMemory(new Ram(0xffff), 0x0000, 0x10000);
@@ -69,12 +69,36 @@ public class OpcodeAddressTest
         cpu.Execute(new Instruction(Opcode.Sta, AddressMode.IndexedZeroPageX, [0x60]));
         Assert.AreEqual(cpu.Read(0x75), 0x65);
 
-        // Zero-Paged Indexed Y
+        // Zero-Page Indexed Y
 
         cpu.Execute(new Instruction(Opcode.Ldx, AddressMode.Immediate, [0x66]));
         cpu.Execute(new Instruction(Opcode.Ldy, AddressMode.Immediate, [0x16]));
         cpu.Execute(new Instruction(Opcode.Stx, AddressMode.IndexedZeroPageY, [0x60]));
         Assert.AreEqual(cpu.Read(0x76), 0x66);
+
+        // Absolute Indexed X
+
+        cpu.Execute(new Instruction(Opcode.Lda, AddressMode.Immediate, [0x77]));
+        cpu.Execute(new Instruction(Opcode.Ldx, AddressMode.Immediate, [0x34]));
+        cpu.Execute(new Instruction(Opcode.Sta, AddressMode.IndexedAbsoluteX, [0x0, 0x12]));
+        Assert.AreEqual(cpu.Read(0x1234), 0x77);
+
+        // Absolute Indexed Y
+
+        cpu.Execute(new Instruction(Opcode.Lda, AddressMode.Immediate, [0x78]));
+        cpu.Execute(new Instruction(Opcode.Ldy, AddressMode.Immediate, [0x34]));
+        cpu.Execute(new Instruction(Opcode.Sta, AddressMode.IndexedAbsoluteY, [0x0, 0x12]));
+        Assert.AreEqual(cpu.Read(0x1234), 0x78);
+
+        // Relative
+
+        cpu.Pc = 0x8000;
+        cpu.Execute(new Instruction(Opcode.Bra, AddressMode.Relative, [0x80]));
+        Assert.AreEqual(cpu.Pc, 0x8000 - 0x80);
+        cpu.Execute(new Instruction(Opcode.Bra, AddressMode.Relative, [0x7f]));
+        Assert.AreEqual(cpu.Pc, 0x8000 - 0x1);
+
+        // Absolute Indirect
 
 
     }

@@ -35,4 +35,9 @@ public class Apu
     {
         _dmc = (byte)(value & 0b1111111);
     }
+
+    public void SetFrameCounterOptions(byte value)
+    {
+
+    }
 }

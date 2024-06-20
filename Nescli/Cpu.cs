@@ -125,6 +125,12 @@ public class Cpu
             }
             else
             {
+                if (Pc == 0x80c3)
+                {
+                    Console.Write("");
+                }
+
+                // Console.WriteLine(instruction);
                 Execute(instruction);
             }
         }
@@ -267,7 +273,16 @@ public class Cpu
 
                 break;
             case Opcode.Bmi:
-                throw new NotImplementedException(ins.ToString());
+                if (ins.AddressMode != AddressMode.Relative)
+                {
+                    throw new IllegalAddressModeException(ins);
+                }
+
+                if (GetStatusBit(StatusBits.Negative))
+                {
+                    Pc = ResolveAddressWrite(ins);
+                }
+
                 break;
             case Opcode.Bne:
                 if (ins.AddressMode != AddressMode.Relative)
@@ -294,7 +309,13 @@ public class Cpu
 
                 break;
             case Opcode.Bra:
-                throw new NotImplementedException(ins.ToString());
+                if (ins.AddressMode != AddressMode.Relative)
+                {
+                    throw new IllegalAddressModeException(ins);
+                }
+
+                Pc = ResolveAddressWrite(ins);
+
                 break;
             case Opcode.Brk:
                 throw new NotImplementedException(ins.ToString());

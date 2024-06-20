@@ -206,7 +206,7 @@ public class Ppu
     /// <param name="value">Value to write into implicit address</param>
     public void WritePpuData(byte value)
     {
-        Console.WriteLine(V);
+        Console.WriteLine(V.ToString("x4") + ": " + value.ToString("x2"));
         _mc.Write(V, value);
         V += _vramAddressIncrementPerDataReadWrite;
     }
