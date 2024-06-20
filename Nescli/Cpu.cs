@@ -217,7 +217,6 @@ public class Cpu
                 }
 
                 break;
-                break;
             case Opcode.Bcc:
                 if (ins.AddressMode != AddressMode.Relative)
                 {
@@ -1010,7 +1009,7 @@ public class Cpu
         Carry = 0,
         Zero = 1,
         NotIrqDisable = 2,
-        DecimalMode = 3, // WIll not actually be implemented, as the NES' 6502 derivative omits it too
+        DecimalMode = 3, // Will not actually be implemented, as the NES' 6502 derivative omits it too
         BrkCommand = 4,
         Overflow = 6,
         Negative = 7
