@@ -125,12 +125,6 @@ public class Cpu
             }
             else
             {
-                if (Pc == 0x80c3)
-                {
-                    Console.Write("");
-                }
-
-                // Console.WriteLine(instruction);
                 Execute(instruction);
             }
         }
@@ -185,7 +179,7 @@ public class Cpu
                     case AddressMode.IndexedAbsoluteX:
                     case AddressMode.IndexedAbsoluteY:
                     case AddressMode.ZeroPageIndirect:
-                        A &= (byte)ResolveAddressRead(ins);
+                        A &= ResolveAddressRead(ins);
                         SetStatusBit(StatusBits.Zero, A == 0);
                         SetStatusBit(StatusBits.Negative, (A & 0b10000000) != 0);
                         break;
@@ -261,7 +255,7 @@ public class Cpu
                     case AddressMode.ZeroPage:
                     case AddressMode.IndexedZeroPageX:
                     case AddressMode.IndexedAbsoluteX:
-                        var result = (byte)ResolveAddressRead(ins) & A;
+                        var result = ResolveAddressRead(ins) & A;
                         SetStatusBit(StatusBits.Zero, result == 0);
                         SetStatusBit(StatusBits.Negative, (result & 0b10000000) != 0);
                         SetStatusBit(StatusBits.Overflow, (result & 0b1000000) != 0);
@@ -504,7 +498,7 @@ public class Cpu
                     case AddressMode.IndexedAbsoluteX:
                     case AddressMode.IndexedAbsoluteY:
                     case AddressMode.ZeroPageIndirect:
-                        A ^= (byte)ResolveAddressRead(ins);
+                        A ^= ResolveAddressRead(ins);
                         SetStatusBit(StatusBits.Zero, A == 0);
                         SetStatusBit(StatusBits.Negative, (A & 0b10000000) != 0);
                         break;
@@ -587,7 +581,7 @@ public class Cpu
                     case AddressMode.IndexedAbsoluteX:
                     case AddressMode.IndexedAbsoluteY:
                     case AddressMode.ZeroPageIndirect:
-                        A = (byte)ResolveAddressRead(ins);
+                        A = ResolveAddressRead(ins);
                         SetStatusBit(StatusBits.Zero, A == 0);
                         SetStatusBit(StatusBits.Negative, A > 127);
                         break;
@@ -604,7 +598,7 @@ public class Cpu
                     case AddressMode.ZeroPage:
                     case AddressMode.IndexedZeroPageY:
                     case AddressMode.IndexedAbsoluteY:
-                        X = (byte)ResolveAddressRead(ins);
+                        X = ResolveAddressRead(ins);
                         SetStatusBit(StatusBits.Zero, X == 0);
                         SetStatusBit(StatusBits.Negative, X > 127);
                         break;
@@ -621,7 +615,7 @@ public class Cpu
                     case AddressMode.ZeroPage:
                     case AddressMode.IndexedZeroPageX:
                     case AddressMode.IndexedAbsoluteX:
-                        Y = (byte)ResolveAddressRead(ins);
+                        Y = ResolveAddressRead(ins);
                         SetStatusBit(StatusBits.Zero, X == 0);
                         SetStatusBit(StatusBits.Negative, X > 127);
                         break;
@@ -668,7 +662,7 @@ public class Cpu
                     case AddressMode.IndexedAbsoluteX:
                     case AddressMode.IndexedAbsoluteY:
                     case AddressMode.ZeroPageIndirect:
-                        A |= (byte)ResolveAddressRead(ins);
+                        A |= ResolveAddressRead(ins);
                         SetStatusBit(StatusBits.Zero, A == 0);
                         SetStatusBit(StatusBits.Negative, (A & 0b10000000) != 0);
                         break;
@@ -948,24 +942,24 @@ public class Cpu
     /// <param name="ins">The instruction to operate on</param>
     /// <returns>The value to operate further with. Normally 8-bit unsigned, but the jump instructions return an address</returns>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if an addressing mode is provided that doesn't fit with reading</exception>
-    private int ResolveAddressRead(Instruction ins)
+    private byte ResolveAddressRead(Instruction ins)
     {
         return ins.AddressMode switch
         {
             AddressMode.Immediate => ins.ExtraBytes[0],
-            AddressMode.Absolute => Read((ushort)(ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8)),
+            AddressMode.Absolute => Read((ushort)(ins.ExtraBytes[0] | (ins.ExtraBytes[1] << 8))),
             AddressMode.ZeroPage => Read(ins.ExtraBytes[0]),
             AddressMode.Accumulator => A,
             AddressMode.IndexedIndirect => Read((ushort)(Read((byte)(ins.ExtraBytes[0] + X)) |
-                                                         Read((byte)(ins.ExtraBytes[0] + X + 1)) << 8)),
+                                                         (Read((byte)(ins.ExtraBytes[0] + X + 1)) << 8))),
             AddressMode.IndirectIndexed => Read((ushort)(Read(ins.ExtraBytes[0]) +
                                                          (Read((ushort)(ins.ExtraBytes[0] + 1)) << 8) + Y)),
-            AddressMode.IndexedZeroPageX => (byte)(Read(ins.ExtraBytes[0]) + X),
-            AddressMode.IndexedZeroPageY => (byte)(Read(ins.ExtraBytes[0]) + Y),
-            AddressMode.IndexedAbsoluteX => Read((ushort)((ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8) + X)),
-            AddressMode.IndexedAbsoluteY => Read((ushort)((ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8) + Y)),
+            AddressMode.IndexedZeroPageX => Read((ushort)(ins.ExtraBytes[0] + X)),
+            AddressMode.IndexedZeroPageY => Read((ushort)(ins.ExtraBytes[0] + Y)),
+            AddressMode.IndexedAbsoluteX => Read((ushort)((ins.ExtraBytes[0] | (ins.ExtraBytes[1] << 8)) + X)),
+            AddressMode.IndexedAbsoluteY => Read((ushort)((ins.ExtraBytes[0] | (ins.ExtraBytes[1] << 8)) + Y)),
             AddressMode.ZeroPageIndirect => Read((ushort)(Read(ins.ExtraBytes[0]) |
-                                                          Read((ushort)(ins.ExtraBytes[0] + 1)) << 8)),
+                                                          (Read((ushort)(ins.ExtraBytes[0] + 1)) << 8))),
             _ => throw new IllegalAddressModeException(ins)
         };
     }
@@ -980,23 +974,23 @@ public class Cpu
     {
         return ins.AddressMode switch
         {
-            AddressMode.Absolute => (ushort)(ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8),
+            AddressMode.Absolute => (ushort)(ins.ExtraBytes[0] | (ins.ExtraBytes[1] << 8)),
             AddressMode.ZeroPage => ins.ExtraBytes[0],
             AddressMode.IndexedIndirect => (ushort)(Read((byte)(ins.ExtraBytes[0] + X)) |
-                                                    Read((byte)(ins.ExtraBytes[0] + X + 1)) << 8),
+                                                    (Read((byte)(ins.ExtraBytes[0] + X + 1)) << 8)),
             AddressMode.IndirectIndexed => (ushort)(Read(ins.ExtraBytes[0]) +
                                                     (Read((ushort)(ins.ExtraBytes[0] + 1)) << 8) + Y),
             AddressMode.IndexedZeroPageX => (byte)(ins.ExtraBytes[0] + X),
             AddressMode.IndexedZeroPageY => (byte)(ins.ExtraBytes[0] + Y),
-            AddressMode.IndexedAbsoluteX => (ushort)((ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8) + X),
-            AddressMode.IndexedAbsoluteY => (ushort)((ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8) + Y),
+            AddressMode.IndexedAbsoluteX => (ushort)((ins.ExtraBytes[0] | (ins.ExtraBytes[1] << 8)) + X),
+            AddressMode.IndexedAbsoluteY => (ushort)((ins.ExtraBytes[0] | (ins.ExtraBytes[1] << 8)) + Y),
             AddressMode.Relative => (ushort)(Pc + (ins.ExtraBytes[0] - ((ins.ExtraBytes[0] & 0x80) != 0 ? 256 : 0))),
             AddressMode.AbsoluteIndirect => (ushort)
-                (Read((ushort)(ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8)) |
-                 (Read((ushort)((ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8) + 1)) << 8)),
+                (Read((ushort)(ins.ExtraBytes[0] | (ins.ExtraBytes[1] << 8))) |
+                 (Read((ushort)((ins.ExtraBytes[0] | (ins.ExtraBytes[1] << 8)) + 1)) << 8)),
             AddressMode.AbsoluteIndexedIndirect => (ushort)
-                (Read((ushort)((ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8) + X)) |
-                 (Read((ushort)((ins.ExtraBytes[0] | ins.ExtraBytes[1] << 8) + 1 + X)) << 8)),
+                (Read((ushort)((ins.ExtraBytes[0] | (ins.ExtraBytes[1] << 8)) + X)) |
+                 (Read((ushort)((ins.ExtraBytes[0] | (ins.ExtraBytes[1] << 8)) + 1 + X)) << 8)),
             _ => throw new IllegalAddressModeException(ins)
         };
     }

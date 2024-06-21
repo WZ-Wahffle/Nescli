@@ -63,35 +63,30 @@ public class OpcodeAddressTest
         Assert.AreEqual(cpu.Read(0x4038), 0x41);
 
         // Zero-Paged Indexed X
-
         cpu.Execute(new Instruction(Opcode.Lda, AddressMode.Immediate, [0x65]));
         cpu.Execute(new Instruction(Opcode.Ldx, AddressMode.Immediate, [0x15]));
         cpu.Execute(new Instruction(Opcode.Sta, AddressMode.IndexedZeroPageX, [0x60]));
         Assert.AreEqual(cpu.Read(0x75), 0x65);
 
         // Zero-Page Indexed Y
-
         cpu.Execute(new Instruction(Opcode.Ldx, AddressMode.Immediate, [0x66]));
         cpu.Execute(new Instruction(Opcode.Ldy, AddressMode.Immediate, [0x16]));
         cpu.Execute(new Instruction(Opcode.Stx, AddressMode.IndexedZeroPageY, [0x60]));
         Assert.AreEqual(cpu.Read(0x76), 0x66);
 
         // Absolute Indexed X
-
         cpu.Execute(new Instruction(Opcode.Lda, AddressMode.Immediate, [0x77]));
         cpu.Execute(new Instruction(Opcode.Ldx, AddressMode.Immediate, [0x34]));
         cpu.Execute(new Instruction(Opcode.Sta, AddressMode.IndexedAbsoluteX, [0x0, 0x12]));
         Assert.AreEqual(cpu.Read(0x1234), 0x77);
 
         // Absolute Indexed Y
-
         cpu.Execute(new Instruction(Opcode.Lda, AddressMode.Immediate, [0x78]));
         cpu.Execute(new Instruction(Opcode.Ldy, AddressMode.Immediate, [0x34]));
         cpu.Execute(new Instruction(Opcode.Sta, AddressMode.IndexedAbsoluteY, [0x0, 0x12]));
         Assert.AreEqual(cpu.Read(0x1234), 0x78);
 
         // Relative
-
         cpu.Pc = 0x8000;
         cpu.Execute(new Instruction(Opcode.Bra, AddressMode.Relative, [0x80]));
         Assert.AreEqual(cpu.Pc, 0x8000 - 0x80);
@@ -99,6 +94,29 @@ public class OpcodeAddressTest
         Assert.AreEqual(cpu.Pc, 0x8000 - 0x1);
 
         // Absolute Indirect
+        cpu.Pc = 0x8000;
+        cpu.Execute(new Instruction(Opcode.Lda, AddressMode.Immediate, [0x89]));
+        cpu.Execute(new Instruction(Opcode.Sta, AddressMode.Absolute, [0x78, 0x56]));
+        cpu.Execute(new Instruction(Opcode.Sta, AddressMode.Absolute, [0x79, 0x56]));
+        cpu.Execute(new Instruction(Opcode.Jmp, AddressMode.AbsoluteIndirect, [0x78, 0x56]));
+        Assert.AreEqual(cpu.Pc, 0x8989);
+
+        // Absolute Indexed Indirect
+        cpu.Pc = 0x8000;
+        cpu.Execute(new Instruction(Opcode.Lda, AddressMode.Immediate, [0x90]));
+        cpu.Execute(new Instruction(Opcode.Sta, AddressMode.Absolute, [0x7A, 0x56]));
+        cpu.Execute(new Instruction(Opcode.Sta, AddressMode.Absolute, [0x7B, 0x56]));
+        cpu.Execute(new Instruction(Opcode.Ldx, AddressMode.Immediate, [0x02]));
+        cpu.Execute(new Instruction(Opcode.Jmp, AddressMode.AbsoluteIndexedIndirect, [0x78, 0x56]));
+        Assert.AreEqual(cpu.Pc, 0x9090);
+    }
+
+    public void TestAddressingWrite()
+    {
+        MemoryController memCtl = new MemoryController();
+        memCtl.AddMemory(new Ram(0xffff), 0x0000, 0x10000);
+        Channel<Cpu.InterruptSource> c = Channel.CreateBounded<Cpu.InterruptSource>(10);
+        var cpu = new Cpu(memCtl, c);
 
 
     }
